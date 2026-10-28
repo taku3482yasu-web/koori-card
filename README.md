@@ -8,11 +8,14 @@
 
 ## いまできること
 
-- 構築済みデッキ「氷隊」「鬼鬼団」のカード一覧（60 種）を見る
-- CPU 対戦は次の段階で作る
+- デッキ（氷隊・鬼鬼団）を えらんで CPU と たいせん（CPU は もう片方の デッキ・強さは ふつう）
+  - カードを タップすると 大きく 出て「出す・使う・付ける・こうげき」。光っている モンスターは こうげき できる
+  - シールドが 割れたときの トリガー・Lv アップ、押し出し などは まんなかに えらぶ 画面が 出る
+- カード一覧（60 種）を見る
 
 ## 作り
 
 - Vite + 素の JS（React なし）。`npm install` → `npm run dev`
-- テスト: `npm test`
+- テスト: `npm test`（ルール・CPU どうし 300 回）と `npm run test:browser`（Chrome で 1 回 たいせん）
+- ルールは `src/logic/game.js`（画面に ふれない）、CPU は `src/logic/cpu.js`、画面は `src/view/`
 - main に push すると GitHub Pages に公開される（`.github/workflows/pages.yml`）
