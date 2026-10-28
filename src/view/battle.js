@@ -75,7 +75,7 @@ export function startBattle(root, myDeck, { onQuit }) {
     ${p.scene ? `<button class="scene" data-key="${mine ? 's' : 'S'}:${p.scene.uid}">場面：${esc(p.scene.name)}</button>` : ''}
     ${mine && p.buddy ? `<button class="buddy" data-key="b:${p.buddy.uid}">バディ：${esc(p.buddy.name)}</button>` : ''}
 </div>`;
-        return `<section class="side ${mine ? 'mine' : 'enemy'}">${mine ? '' : info}<div class="field">${field}</div>${mine ? info : ''}</section>`;
+        return `<section class="side ${mine ? 'mine' : 'enemy'}">${mine ? '' : info}<div class="zone">${field}</div>${mine ? info : ''}</section>`;
     }
 
     function render() {

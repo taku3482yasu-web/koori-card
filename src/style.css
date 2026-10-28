@@ -88,7 +88,8 @@ body {
 .card .race, .card .label { padding: 1px 8px; border-radius: 999px; background: var(--edge); color: #111; font-weight: bold; font-size: 10px; }
 .card .power { font-size: 22px; font-weight: 900; color: var(--edge); line-height: 1; text-align: right; }
 .card .power small { display: block; font-size: 8px; color: var(--sub); }
-.card .note { color: var(--sub); font-size: 9px; }
+.card .note { min-width: 0; color: var(--sub); font-size: 9px; text-align: right; }
+.card .race, .card .label { flex: none; }
 .card .text {
     min-height: 26%; padding: 5px 6px; border-radius: 6px;
     background: #eef4ff; color: #1a2233; line-height: 1.4;
@@ -98,7 +99,7 @@ body {
 .card .tags { display: flex; gap: 4px; margin-bottom: 2px; }
 .card .tag { padding: 0 5px; border-radius: 4px; background: #1a2233; color: #fff; font-size: 9px; font-weight: bold; }
 .card .tag.dt { background: var(--dt); color: #3a2a00; border-radius: 999px; }
-.card footer { color: var(--sub); font-size: 8px; }
+.card footer { color: var(--sub); font-size: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- たいせん ---------- */
 .battle { display: flex; flex-direction: column; gap: 8px; max-width: 760px; margin: 0 auto; }
@@ -112,7 +113,7 @@ body {
 .shields i.on { background: #6fc3ff; border-color: #6fc3ff; }
 .scene, .buddy { padding: 2px 8px; border-radius: 6px; border: 1px solid var(--magic-edge); background: var(--magic); color: var(--ink); font: inherit; font-size: 11px; cursor: pointer; }
 .buddy { border-color: var(--lv); background: #3a3010; }
-.field { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.zone { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .center { padding: 4px 8px; font-size: 12px; }
 .turn b { color: var(--lv); }
 .log { margin: 4px 0 0; padding-left: 18px; color: var(--sub); min-height: 4.5em; }
