@@ -1,0 +1,5 @@
+node_modules/
+dist/
+# 参考の画像は手元だけ
+*.jpg
+*.mp4

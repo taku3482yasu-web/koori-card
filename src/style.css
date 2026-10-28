@@ -1,0 +1,90 @@
+/* こおりくんの大冒険 カードゲーム (カードの 色は ユーザーの デザイン案から) */
+:root {
+    --bg: #12161f;
+    --ink: #eef3ff;
+    --sub: #9aa6bd;
+    --monster: #12233d;
+    --monster-edge: #8fd3ff;
+    --magic: #231a3d;
+    --magic-edge: #c6a4ff;
+    --item: #16301f;
+    --item-edge: #9fe08a;
+    --lv: #ffe07a;
+    --dt: #ffd23a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Meiryo", sans-serif;
+}
+
+#app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.top h1 { margin: 0; font-size: 24px; }
+.top h1 small { display: block; font-size: 14px; color: var(--monster-edge); }
+.play { padding: 10px 16px; border-radius: 10px; border: 0; background: #2d6cdf; color: #fff; font: inherit; font-weight: bold; }
+.play:disabled { opacity: 0.5; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.tabs button { padding: 8px 14px; border-radius: 999px; border: 1px solid #3a4560; background: transparent; color: var(--ink); font: inherit; cursor: pointer; }
+.tabs button.on { background: var(--ink); color: var(--bg); }
+.tabs.small { margin-top: 8px; }
+.tabs.small button { padding: 4px 12px; font-size: 13px; }
+.count { color: var(--sub); font-size: 13px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+
+/* ---------- カード ---------- */
+.card {
+    --base: var(--monster);
+    --edge: var(--monster-edge);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    aspect-ratio: 63 / 88;
+    padding: 8px;
+    border: 3px solid var(--edge);
+    border-radius: 10px;
+    background: var(--base);
+    font-size: 11px;
+}
+.card.magic, .card.field { --base: var(--magic); --edge: var(--magic-edge); }
+.card.item { --base: var(--item); --edge: var(--item-edge); }
+
+.card header { display: flex; align-items: center; gap: 6px; }
+.card .lv {
+    flex: none; display: grid; place-items: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--lv); color: #222; font-weight: 900; font-size: 15px;
+}
+.card .name {
+    flex: 1; min-width: 0; padding: 4px 8px; border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15);
+    font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card .art {
+    flex: 1; display: grid; place-items: center;
+    border: 1px dashed rgba(255, 255, 255, 0.25); border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+}
+.card .art span { font-size: 40px; font-weight: 900; color: var(--edge); opacity: 0.6; }
+.card .mid { display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; border-bottom: 2px solid var(--edge); padding-bottom: 3px; }
+.card .race, .card .label { padding: 1px 8px; border-radius: 999px; background: var(--edge); color: #111; font-weight: bold; font-size: 10px; }
+.card .power { font-size: 22px; font-weight: 900; color: var(--edge); line-height: 1; text-align: right; }
+.card .power small { display: block; font-size: 8px; color: var(--sub); }
+.card .note { color: var(--sub); font-size: 9px; }
+.card .text {
+    min-height: 26%; padding: 5px 6px; border-radius: 6px;
+    background: #eef4ff; color: #1a2233; line-height: 1.4;
+}
+.card.magic .text, .card.field .text { background: #f2ecff; }
+.card.item .text { background: #eef8e8; }
+.card .tags { display: flex; gap: 4px; margin-bottom: 2px; }
+.card .tag { padding: 0 5px; border-radius: 4px; background: #1a2233; color: #fff; font-size: 9px; font-weight: bold; }
+.card .tag.dt { background: var(--dt); color: #3a2a00; border-radius: 999px; }
+.card footer { color: var(--sub); font-size: 8px; }

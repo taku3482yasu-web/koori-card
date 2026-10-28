@@ -1,0 +1,16 @@
+{
+  "name": "koori-card",
+  "private": true,
+  "version": "0.1.0",
+  "description": "こおりくんの大冒険 カードゲーム (こおりくんシリーズのキャラ・場面・アイテム・技のカード対戦)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --base=./",
+    "preview": "vite preview",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}
