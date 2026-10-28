@@ -3,13 +3,14 @@
 // ---------------------------------------------------------------------
 // node tools/extract-art.mjs [../koori-dungeon]  →  src/art/legacy-art.js を 作り直す (手で 直さない)
 // キャラは art.js の SPRITES (こおりくん・おにおに など) と bigart.js などの BIG、道具は art.js の drawItem から。
-// どの カードに どの 絵を 使うかは src/art/index.js の CARD_ART。前作に ない 絵は src/art/new-art.js
+// どの カードに どの 絵を 使うかは src/art/index.js の CARD_ART (と 技・魔法の 絵で 使う src/art/scenes.js の USES)。前作に ない 絵は src/art/new-art.js
 // =====================================================================
 import { readFileSync, writeFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CARD_ART } from '../src/art/index.js';
+import { USES } from '../src/art/scenes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dungeon = process.argv[2] || join(here, '..', '..', 'koori-dungeon');
@@ -49,8 +50,8 @@ const fakeCtx = (rect) => ({
 const ITEM_KIND = { onigiri: 'food', bad_onigiri: 'food', ice_shard: 'heal', omamori: 'revive', revive_seed: 'revive', warp_orb: 'orb', sweep_orb: 'orb' };
 
 const out = {};
-for (const [, key] of Object.entries(CARD_ART)) {
-    if (out[key] || key.startsWith('new:')) continue;
+for (const key of [...Object.values(CARD_ART), ...USES]) {
+    if (out[key] || key.startsWith('new:') || key.startsWith('scene:')) continue;
     const [type, id] = key.split(':');
     if (type === 'sprite') {
         const s = KD.Art.SPRITES[id];

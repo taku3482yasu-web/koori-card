@@ -3,8 +3,13 @@
 // ---------------------------------------------------------------------
 // 技は「その キャラが 技を 放つ ところ」(2026-10-28 ユーザー指定)。キャラは 前作の 絵 (legacy-art.js) を そのまま 使い、
 // 武器・エフェクト・背景を 描きたす。場面は ダンジョンの 景色を 1 枚の 絵に した。
-//   paint(p): p.rect / p.px / p.line / p.disc / p.art (前作の 絵を 置く。scale 2 で 2 倍・0.5 で 半分、skip で 消す 色の 文字)
+//   paint(p): p.rect / p.px / p.line / p.disc / p.art (前作の 絵を 置く。scale 2 で 2 倍・0.5 で 半分、skip で 消す 色の 文字、
+//             tint で 色を まぜる [色, 割合]、dither で 1 ドットおきに 消える)
 // =====================================================================
+// 技・魔法の 絵で 使う 前作の 絵 (tools/extract-art.mjs が これも 写す)
+export const USES = ['sprite:koori', 'sprite:onioni', 'big:maou', 'sprite:furukawa', 'sprite:tomoishi', 'sprite:haribaby', 'sprite:donguriko', 'sprite:mumenbachi',
+    'item:ice_shard', 'item:warp_orb', 'item:sweep_orb', 'item:bad_onigiri'];
+
 export const W = 48;
 export const H = 36;
 
@@ -136,6 +141,104 @@ export const SCENES = {
         }
     },
 
+    // ---------- 魔法 (道具・キャラ) ----------
+    // 氷のかけら：こおりくんが 氷のかけらを かかげると、氷の 盾が あらわれる
+    'scene:ice_shard': (p) => {
+        bands(p, [['#10243e', 12], ['#163456', 12], ['#1e4470', 12]]);
+        p.art('sprite:koori', 0, 4, { scale: 2 });
+        p.disc(29, 10, 6, '#2a5a8a');
+        p.art('item:ice_shard', 21, 0);
+        // 盾 (上は 四角・下は とがる)
+        for (let y = 0; y < 22; y++) {
+            const w = y < 12 ? 12 : Math.max(0, 12 - (y - 11) * 1.2);
+            p.rect(Math.round(41 - w / 2), 8 + y, Math.round(w), 1, y === 0 ? '#ffffff' : '#7fd3f7');
+        }
+        for (let y = 2; y < 18; y++) p.px(41, 8 + y, '#bff0ff');
+        p.rect(37, 12, 9, 1, '#bff0ff');
+        sparkle(p, 30, 2, '#ffffff', 2);
+        sparkle(p, 46, 4, '#bff0ff', 1);
+        sparkle(p, 33, 26, '#bff0ff', 1);
+    },
+    // ワープ玉：玉が はじけて、うずに 相手が 吸いこまれる
+    'scene:warp_orb': (p) => {
+        bands(p, [['#140a24', 12], ['#1c1030', 12], ['#24143c', 12]]);
+        for (let r = 17; r > 0; r -= 2) p.disc(28, 18, r, r % 4 === 1 ? '#5a2a9a' : '#3a1a6a');
+        for (let i = 0; i < 40; i++) {
+            const a = i * 0.45;
+            const r = 2 + i * 0.4;
+            p.px(28 + Math.cos(a) * r, 18 + Math.sin(a) * r, '#d0a8ff');
+        }
+        p.art('sprite:haribaby', 20, 10, { dither: true });
+        for (const [x, y] of [[6, 26], [10, 30], [4, 31], [9, 24]]) p.rect(x, y, 2, 2, '#b07aff');
+        p.art('item:warp_orb', -4, 18);
+        sparkle(p, 44, 5, '#ffffff', 2);
+        sparkle(p, 12, 6, '#d0a8ff', 1);
+    },
+    // ふるカワの応援：ふるカワが ポンポンで 応援して、カードが 2 枚 とんでくる
+    'scene:furukawa_cheer': (p) => {
+        bands(p, [['#3a1a3a', 10], ['#4a2048', 10], ['#5a2a58', 16]]);
+        p.disc(16, 2, 14, '#6a3a6a');   // スポットライト
+        p.art('sprite:furukawa', 0, 0, { scale: 2 });
+        for (const [x, y] of [[2, 25], [30, 25]]) { p.disc(x, y, 4, '#ffe040'); p.px(x - 1, y - 1, '#ffffff'); p.px(x + 2, y + 1, '#ffb000'); }
+        // とんでくる カード 2 枚
+        for (const [x, y, c] of [[36, 4, '#12233d'], [40, 14, '#231a3d']]) {
+            p.rect(x, y, 8, 11, '#8fd3ff');
+            p.rect(x + 1, y + 1, 6, 9, c);
+            p.px(x + 2, y + 2, '#ffe07a');
+            p.rect(x + 2, y + 6, 4, 3, '#eef4ff');
+        }
+        for (const [x, y] of [[35, 28], [44, 29]]) { p.rect(x, y, 1, 4, '#ffe0f0'); p.rect(x + 1, y, 2, 1, '#ffe0f0'); p.disc(x - 1, y + 4, 1, '#ffe0f0'); }   // 音符
+        sparkle(p, 34, 2, '#ffe040', 1);
+    },
+    // 一網打尽玉：玉が 爆発して、まわりの 敵が みんな ふきとぶ
+    'scene:sweep_orb': (p) => {
+        bands(p, [['#1a1410', 12], ['#2a2018', 12], ['#3a2c20', 12]]);
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            p.line(24, 20, 24 + Math.round(Math.cos(a) * 22), 20 + Math.round(Math.sin(a) * 18), '#7a3a1a');
+        }
+        p.disc(24, 20, 9, '#ff7a5a');
+        p.disc(24, 20, 6, '#ffb070');
+        p.disc(24, 20, 3, '#fff0c0');
+        p.art('sprite:haribaby', -2, -2);
+        p.art('sprite:donguriko', 33, -3);
+        p.art('sprite:mumenbachi', 34, 21);
+        for (const [x, y] of [[14, 6], [32, 12], [16, 30], [8, 22]]) sparkle(p, x, y, '#ffe060', 1);
+    },
+    // ともいしのお弁当：ともいしが こおりくんに お弁当を わたす
+    'scene:tomoishi_bento': (p) => {
+        bands(p, [['#f0d8a0', 20], ['#c8a070', 16]]);
+        p.rect(30, 2, 14, 10, '#8fd0ff');   // まど
+        p.rect(36, 2, 1, 10, '#ffffff');
+        p.rect(30, 6, 14, 1, '#ffffff');
+        p.rect(0, 30, W, 6, '#a07a50');
+        p.art('sprite:tomoishi', 0, 0, { scale: 2 });
+        p.art('sprite:koori', 33, 20);
+        // お弁当 (ふたを あけた 箱)
+        p.rect(22, 21, 14, 9, '#3a2a20');
+        p.rect(23, 22, 12, 7, '#c03a2a');
+        p.rect(24, 23, 5, 5, '#ffffff');
+        p.rect(25, 26, 3, 2, '#1a2a1a');
+        p.rect(30, 23, 4, 2, '#ffe040');
+        p.rect(30, 26, 4, 2, '#ff6a6a');
+        p.disc(42, 14, 2, '#ff6a8a');   // ハート
+        p.disc(45, 14, 2, '#ff6a8a');
+        for (let i = 0; i < 4; i++) p.rect(41 + i, 16 + i, 6 - i * 2, 1, '#ff6a8a');
+    },
+    // 腐ったおにぎり：食べた 相手が おなかを こわす (大腸炎)
+    'scene:bad_onigiri': (p) => {
+        bands(p, [['#1a2418', 12], ['#222e1e', 12], ['#2a3624', 12]]);
+        p.rect(0, 31, W, 5, '#3a4630');
+        p.art('sprite:haribaby', -2, 4, { scale: 2, tint: ['#7ac04a', 0.45] });
+        // かじった 腐ったおにぎり と におい
+        p.art('item:bad_onigiri', 22, 2, { scale: 2 });
+        p.disc(31, 10, 2, '#2a3624');
+        for (const x of [30, 36, 42]) for (let y = 0; y < 9; y++) p.px(x + Math.round(Math.sin(y / 1.5) * 1.5), 9 - y, '#8aa060');
+        // おなかの ぐるぐる・あせ
+        for (let i = 0; i < 14; i++) p.px(14 + Math.cos(i * 0.9) * (1 + i * 0.25), 28 + Math.sin(i * 0.9) * (1 + i * 0.25), '#c8e080');
+        for (const [x, y] of [[30, 6], [2, 4], [26, 22]]) { p.px(x, y, '#9ad8ff'); p.rect(x - 1, y + 1, 3, 2, '#9ad8ff'); }
+    },
+
     // ---------- 場面 ----------
     // 雪どけの氷河：とけはじめた 氷河と 春の 芽
     'scene:glacier': (p) => {
@@ -204,6 +307,13 @@ export const SCENES = {
     }
 };
 
+// 色を まぜる ('#rrggbb' 2 つを 割合 t で)
+function mix(a, b, t) {
+    const n = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const [x, y] = [n(a), n(b)];
+    return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+
 // 絵を 色の 表 (H 行 × W 列。null は とうめい) に する
 export function paintScene(key, ART) {
     const grid = Array.from({ length: H }, () => Array(W).fill(null));
@@ -224,19 +334,21 @@ export function paintScene(key, ART) {
             }
         },
         disc(cx, cy, r, c) { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r) px(cx + x, cy + y, c); },
-        art(key2, x, y, { scale = 1, skip = '' } = {}) {
+        art(key2, x, y, { scale = 1, skip = '', tint = null, dither = false } = {}) {
             const a = ART[key2];
             if (!a) throw new Error(`絵が ない: ${key2}`);
+            const color = (ch) => (tint ? mix(a.palette[ch], tint[0], tint[1]) : a.palette[ch]);
+            const put = (xx, yy, c) => { if (!dither || (Math.round(xx) + Math.round(yy)) % 2 === 0) px(xx, yy, c); };
             if (scale >= 1) {
                 a.rows.forEach((row, ry) => [...row].forEach((ch, rx) => {
                     if (ch === '.' || skip.includes(ch)) return;
-                    for (let sy = 0; sy < scale; sy++) for (let sx = 0; sx < scale; sx++) px(x + rx * scale + sx, y + ry * scale + sy, a.palette[ch]);
+                    for (let sy = 0; sy < scale; sy++) for (let sx = 0; sx < scale; sx++) put(x + rx * scale + sx, y + ry * scale + sy, color(ch));
                 }));
             } else {
                 const step = Math.round(1 / scale);
                 for (let ry = 0; ry < a.h; ry += step) for (let rx = 0; rx < a.w; rx += step) {
                     const ch = a.rows[ry][rx];
-                    if (ch !== '.' && !skip.includes(ch)) px(x + rx / step, y + ry / step, a.palette[ch]);
+                    if (ch !== '.' && !skip.includes(ch)) put(x + rx / step, y + ry / step, color(ch));
                 }
             }
         }

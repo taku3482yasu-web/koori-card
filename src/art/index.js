@@ -16,18 +16,18 @@ export const CARD_ART = {
     1: 'sprite:koori', 2: 'big:yukiusapon', 3: 'big:kakigoora', 4: 'big:tsurarabo', 5: 'big:shirokumatcho', 6: 'big:yukionnan',
     7: 'big:hyougaryu', 8: 'big:penguinknight', 9: 'big:kogame', 10: 'big:urashima', 11: 'big:okagappa', 12: 'big:nakata',
     13: 'big:harukazedori', 14: 'big:tamu', 15: 'big:zumitani', 16: 'big:sakurarisu', 17: 'big:harukirin', 18: 'big:yasu',
-    // 氷隊の 魔法 (前作の 道具・キャラ) と アイテム
+    // 氷隊の 魔法 (技・道具・キャラ。その 場面を 描いた) と 場面・アイテム
     19: 'scene:koori_hammer', 20: 'scene:shitennou_sword', 21: 'scene:koori_breath',
-    22: 'item:ice_shard', 23: 'item:warp_orb', 24: 'sprite:furukawa',
+    22: 'scene:ice_shard', 23: 'scene:warp_orb', 24: 'scene:furukawa_cheer',
     27: 'new:koori_sword', 28: 'item:omamori', 29: 'item:guard_scarf', 30: 'item:power_band',
     25: 'scene:glacier', 26: 'scene:sea_cave',
     // 鬼鬼団の モンスター
     31: 'sprite:onioni', 32: 'big:konin', 33: 'big:onibin', 34: 'big:goukioni', 35: 'big:asahara', 36: 'big:kinmetsuki',
     37: 'big:dake', 38: 'big:kanabone', 39: 'big:setsubunmame', 40: 'big:harry', 41: 'big:goldDog', 42: 'big:shibata',
     43: 'big:nozoema', 44: 'big:hannyamen', 45: 'big:spamdama', 46: 'big:daishi', 47: 'big:runaya', 48: 'big:maou',
-    // 鬼鬼団の 魔法 (前作の 道具・キャラ) と アイテム
+    // 鬼鬼団の 魔法 (技・道具・キャラ。その 場面を 描いた) と 場面・アイテム
     49: 'scene:oni_kanabo', 50: 'scene:aso_burst', 51: 'scene:onibi',
-    52: 'item:sweep_orb', 53: 'sprite:tomoishi', 54: 'item:bad_onigiri',
+    52: 'scene:sweep_orb', 53: 'scene:tomoishi_bento', 54: 'scene:bad_onigiri',
     55: 'scene:aso_pit', 56: 'scene:net_temple',
     57: 'new:gold_kanabo', 58: 'item:revive_seed', 59: 'item:haramaki', 60: 'item:onigiri'
 };
