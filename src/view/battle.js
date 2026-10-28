@@ -5,7 +5,7 @@
 import { Game } from '../logic/game.js';
 import { cpuTurn } from '../logic/cpu.js';
 import { DECKS } from '../data/cards.js';
-import { cardHTML } from './card.js';
+import { cardHTML, pic } from './card.js';
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -54,6 +54,7 @@ export function startBattle(root, myDeck, { onQuit }) {
         const diff = unit ? pw - card.power : 0;
         const ready = unit && unit.owner === 0 && g.active === 0 && g.canAttack(unit);
         return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''}" data-key="${key}">
+    <span class="pic">${pic(card)}</span>
     <span class="lv">${card.lv}</span>
     <span class="nm">${esc(card.name)}</span>
     ${card.kind === 'monster' ? `<span class="pw ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${pw}</span>` : `<span class="kd">${{ magic: '魔法', field: '場面', item: 'アイテム' }[card.kind]}</span>`}
