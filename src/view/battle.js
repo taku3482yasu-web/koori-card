@@ -161,7 +161,50 @@ ${g.winner !== null ? resultHTML() : ''}`;
         return new Promise((resolve) => { asking = { req: { title: `${u.name}（${ap}）で こうげき`, options, cancel: 'やめる' }, resolve }; render(); });
     }
 
+    // 手札を おしたまま 上へ 動かして、自分の 場で はなすと そのまま 出す (タップは いままでどおり 大きく 出る)
+    let drag = null;       // { el, card, from, x, y, ghost }
+    let dragged = false;   // ドラッグの あとの click は 無視する
+    const overMine = (x, y) => !!document.elementFromPoint(x, y)?.closest('.side.mine, .center');
+
+    root.onpointerdown = (e) => {
+        const el = e.target.closest('.hand .mini.can, .buddy');
+        if (!el || !myTurn() || asking || detail || e.button > 0) return;
+        const d = find(el.dataset.key);
+        if (!d?.card || !g.canPlay(me(), d.card)) return;
+        drag = { el, card: d.card, from: d.from, x: e.clientX, y: e.clientY, ghost: null };
+    };
+    root.onpointermove = (e) => {
+        if (!drag) return;
+        if (!drag.ghost) {
+            if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 10) return;
+            drag.ghost = drag.el.cloneNode(true);
+            drag.ghost.classList.add('ghost');
+            drag.ghost.style.width = `${drag.el.offsetWidth}px`;
+            document.body.append(drag.ghost);
+            drag.el.classList.add('lift');
+            try { drag.el.setPointerCapture(e.pointerId); } catch { /* もう はなした */ }
+        }
+        drag.ghost.style.left = `${e.clientX}px`;
+        drag.ghost.style.top = `${e.clientY}px`;
+        root.querySelector('.side.mine')?.classList.toggle('drop', overMine(e.clientX, e.clientY));
+    };
+    async function endDrag(e, cancel) {
+        if (!drag) return;
+        const { ghost, el, card, from } = drag;
+        drag = null;
+        if (!ghost) return;
+        ghost.remove();
+        el.classList.remove('lift');
+        root.querySelector('.side.mine')?.classList.remove('drop');
+        dragged = true;
+        setTimeout(() => { dragged = false; }, 0);
+        if (!cancel && overMine(e.clientX, e.clientY) && myTurn()) await run(() => g.play(me(), card, from));
+    }
+    root.onpointerup = (e) => endDrag(e, false);
+    root.onpointercancel = (e) => endDrag(e, true);
+
     root.onclick = async (e) => {
+        if (dragged) return;
         const b = e.target.closest('button, [data-close]');
         if (!b) return;
         if (asking) {

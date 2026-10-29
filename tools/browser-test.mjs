@@ -60,6 +60,18 @@ async function snap(name) {
     const r = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(SHOTS, `${String(++shot).padStart(2, '0')}_${name}.png`), Buffer.from(r.data, 'base64'));
 }
+// マウスで おしたまま 動かして はなす (手札を 場へ ドラッグ)
+async function dragTo(from, to) {
+    const pos = (sel) => js(`(() => { const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r && { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`);
+    const a = await pos(from);
+    const b = await pos(to);
+    if (!a || !b) return false;
+    const mouse = (type, p) => send('Input.dispatchMouseEvent', { type, x: p.x, y: p.y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1 });
+    await mouse('mousePressed', a);
+    for (let i = 1; i <= 6; i++) await mouse('mouseMoved', { x: a.x + (b.x - a.x) * i / 6, y: a.y + (b.y - a.y) * i / 6 });
+    await mouse('mouseReleased', b);
+    return true;
+}
 const click = (sel) => js(`(() => { const b = document.querySelector(${JSON.stringify(sel)}); if (!b) return false; b.click(); return true; })()`);
 
 async function main() {
@@ -93,6 +105,7 @@ async function main() {
     let steps = 0;
     let shotDetail = false;
     let shotAsk = false;
+    let dragged = false;
     while (steps++ < 600) {
         if (await js('!!document.querySelector(".result")')) break;
         if (await js('!!document.querySelector(".ask")')) {
@@ -103,6 +116,18 @@ async function main() {
         }
         const mine = await js('!document.querySelector(".bar .end").disabled');
         if (!mine) { await sleep(200); continue; }
+        // さいしょの 1 枚は ドラッグで 出す (大きな 画面は 出ずに 手札が へる か 選ぶ 画面が 出る)
+        if (!dragged && await js('!!document.querySelector(".hand .mini.can")')) {
+            const before = await js('document.querySelectorAll(".hand .mini").length');
+            await dragTo('.hand .mini.can', '.side.mine .zone');
+            await sleep(200);
+            const after = await js('document.querySelectorAll(".hand .mini").length');
+            if (await js('!!document.querySelector(".sheet:not(.ask)")')) errors.push('ドラッグしたのに 大きな 画面が 出た');
+            else if (after >= before && !(await js('!!document.querySelector(".ask")'))) errors.push('ドラッグで 手札が 出なかった');
+            else console.log('ブラウザのテスト: ドラッグで 手札を 場に 出せた');
+            dragged = true;
+            continue;
+        }
         // 出せる 手札 → こうげき できる モンスター → ターン終了
         if (await click('.hand .mini.can')) {
             await sleep(60);
