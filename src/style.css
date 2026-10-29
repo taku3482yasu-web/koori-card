@@ -118,7 +118,36 @@ body {
 .zone { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .center { padding: 4px 8px; font-size: 12px; }
 .turn b { color: var(--lv); }
-.log { margin: 4px 0 0; padding-left: 18px; color: var(--sub); min-height: 4.5em; }
+.log { display: block; width: 100%; margin: 4px 0 0; padding: 2px 6px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--sub); font: inherit; text-align: left; cursor: pointer; }
+.log:hover { border-color: #34405a; }
+.log ol { margin: 0; padding-left: 18px; min-height: 4.5em; }
+.log .more { display: block; text-align: right; font-size: 10px; color: var(--lv); }
+.grave { padding: 0 6px; border: 1px solid #556; border-radius: 6px; background: none; color: inherit; font: inherit; cursor: pointer; }
+.sheet-in.wide { width: min(560px, 100%); }
+.gravelist { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; max-height: 60vh; overflow-y: auto; }
+.fulllog { max-height: 60vh; overflow-y: auto; margin: 0; padding: 4px 4px 4px 26px; font-size: 12px; color: var(--sub); }
+.fulllog .turnline { margin-top: 6px; color: var(--lv); font-weight: bold; }
+.itemcard .card { width: 82%; margin: 0 auto; }
+
+/* こうげきの 矢印・やられて 割れる */
+.arrow { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 15; pointer-events: none; }
+.arrow line { stroke-width: 6; stroke-linecap: round; stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: arrow-draw 0.3s ease-out forwards; }
+.arrow.me line, .arrow.me path { stroke: var(--lv); fill: var(--lv); }
+.arrow.cpu line, .arrow.cpu path { stroke: #ff6b6b; fill: #ff6b6b; }
+@keyframes arrow-draw { to { stroke-dashoffset: 0; } }
+.mini.attacking { transform: scale(1.08); box-shadow: 0 0 12px var(--lv); z-index: 2; }
+.mini.crack { animation: crack-break 0.6s ease-in forwards; }
+.mini.crack::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M55 0 L45 22 L60 38 L40 55 L58 72 L42 100 M45 22 L20 30 M60 38 L85 45 M40 55 L15 68 M58 72 L80 85' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+@keyframes crack-break {
+    0% { transform: translateX(0); }
+    15% { transform: translateX(-4px) rotate(-2deg); }
+    30% { transform: translateX(4px) rotate(2deg); }
+    45% { transform: translateX(-3px); opacity: 1; filter: brightness(1.6); }
+    100% { transform: translateY(14px) rotate(8deg) scale(0.85); opacity: 0; filter: brightness(1); }
+}
 .hand { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 8px; }
 .hand .mini { flex: 0 0 92px; }
 .bar { display: flex; justify-content: space-between; gap: 8px; }

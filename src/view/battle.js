@@ -16,6 +16,8 @@ export function startBattle(root, myDeck, { onQuit }) {
     let busy = false;
     let detail = null;     // { card, from: 'hand'|'buddy'|'field'|'enemy'|'scene' }
     let asking = null;     // { req, resolve }
+    let graveOf = null;    // 墓地を 見ている プレイヤー (0 か 1)
+    let logOpen = false;   // ログを ぜんぶ 見ている
 
     const me = () => g.players[0];
     const cpu = () => g.players[1];
@@ -28,8 +30,40 @@ export function startBattle(root, myDeck, { onQuit }) {
         ],
         ask: (pid, req) => new Promise((resolve) => { asking = { req, resolve }; render(); }),
         onChange: () => render(),
-        delay: () => (g && g.active === 1 ? wait(450) : Promise.resolve())
+        delay: () => (g && g.active === 1 ? wait(450) : Promise.resolve()),
+        fx: (ev) => fx(ev)
     });
+
+    // ---------- 演出 (こうげきの 矢印・やられて 割れる) ----------
+    const keyOf = (u) => `${u.owner === 0 ? 'f' : 'e'}:${u.uid}`;
+    const elOf = (u) => root.querySelector(`.zone [data-key="${keyOf(u)}"]`);
+    async function fx(ev) {
+        render();
+        if (ev.type === 'attack') {
+            const from = elOf(ev.unit);
+            const to = ev.target === 'shield'
+                ? root.querySelector(`.side.${ev.unit.owner === 0 ? 'enemy' : 'mine'} .shields`)
+                : elOf(ev.target);
+            if (!from || !to) return;
+            const a = from.getBoundingClientRect();
+            const b = to.getBoundingClientRect();
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', `arrow ${ev.unit.owner === 0 ? 'me' : 'cpu'}`);
+            svg.innerHTML = `<defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<line x1="${a.x + a.width / 2}" y1="${a.y + a.height / 2}" x2="${b.x + b.width / 2}" y2="${b.y + b.height / 2}" marker-end="url(#ah)"/>`;
+            from.classList.add('attacking');
+            document.body.append(svg);
+            await wait(650);
+            svg.remove();
+            from.classList.remove('attacking');
+        } else if (ev.type === 'destroy') {
+            const el = elOf(ev.unit);
+            if (!el) return;
+            el.classList.add('crack');
+            await wait(600);
+        }
+    }
+
 
     async function run(fn) {
         busy = true;
@@ -72,7 +106,7 @@ export function startBattle(root, myDeck, { onQuit }) {
         const info = `<div class="info">
     <b>${esc(p.name)}</b><span class="badge">Lv${p.lv}</span>
     <span class="shields" title="シールド">${shields}</span>
-    <span>山札 ${p.deck.length}</span><span>手札 ${p.hand.length}</span><span>墓地 ${p.grave.length}</span>
+    <span>山札 ${p.deck.length}</span><span>手札 ${p.hand.length}</span><button class="grave" data-grave="${p.id}">墓地 ${p.grave.length}</button>
     ${p.scene ? `<button class="scene" data-key="${mine ? 's' : 'S'}:${p.scene.uid}">場面：${esc(p.scene.name)}</button>` : ''}
     ${mine && p.buddy ? `<button class="buddy" data-key="b:${p.buddy.uid}">バディ：${esc(p.buddy.name)}</button>` : ''}
 </div>`;
@@ -81,6 +115,7 @@ export function startBattle(root, myDeck, { onQuit }) {
 
     function render() {
         if (!g) return;
+        const scroll = root.querySelector('.fulllog')?.scrollTop;
         const p = me();
         const status = g.winner !== null ? '' : g.active === 0 ? (busy ? '…' : 'あなたの ターン') : 'CPU の ターン…';
         root.innerHTML = `
@@ -88,7 +123,7 @@ export function startBattle(root, myDeck, { onQuit }) {
     ${side(cpu(), false)}
     <div class="center">
         <div class="turn">${g.turn} ターン目　<b>${status}</b></div>
-        <ol class="log">${g.logs.slice(-4).map((l) => `<li>${esc(l)}</li>`).join('')}</ol>
+        <button class="log" data-log="1" title="ログを ぜんぶ 見る"><ol>${g.logs.slice(-4).map((l) => `<li>${esc(l)}</li>`).join('')}</ol><span class="more">ぜんぶ 見る ▸</span></button>
     </div>
     ${side(p, true)}
     <div class="hand">${p.hand.map((c) => mini(c, { key: `h:${c.uid}`, cls: g.active === 0 && g.canPlay(p, c) ? 'can' : '' })).join('')}</div>
@@ -97,9 +132,31 @@ export function startBattle(root, myDeck, { onQuit }) {
         <button class="end" ${myTurn() ? '' : 'disabled'}>ターン終了</button>
     </div>
 </div>
+${graveOf !== null ? graveHTML() : ''}
+${logOpen ? logHTML() : ''}
 ${detail ? detailHTML() : ''}
 ${asking ? askHTML() : ''}
 ${g.winner !== null ? resultHTML() : ''}`;
+        const full = root.querySelector('.fulllog');
+        if (full) full.scrollTop = scroll ?? full.scrollHeight;   // 開いたときは いちばん 下 (さいしん)
+    }
+
+    function graveHTML() {
+        const p = g.players[graveOf];
+        const list = p.grave.map((c, i) => mini(c, { key: `g:${i}`, tag: 'button' })).join('');
+        return `<div class="sheet" data-close="1"><div class="sheet-in wide">
+    <h2>${esc(p.name)} の 墓地（${p.grave.length} 枚）</h2>
+    ${p.grave.length ? `<div class="gravelist">${list}</div>` : '<p class="why">まだ ない</p>'}
+    <div class="acts"><button class="act sub" data-close="1">とじる</button></div>
+</div></div>`;
+    }
+
+    function logHTML() {
+        return `<div class="sheet" data-close="1"><div class="sheet-in wide">
+    <h2>ログ（${g.logs.length}）</h2>
+    <ol class="fulllog">${g.logs.map((l) => `<li class="${l.startsWith('──') ? 'turnline' : ''}">${esc(l)}</li>`).join('')}</ol>
+    <div class="acts"><button class="act sub" data-close="1">とじる</button></div>
+</div></div>`;
     }
 
     function detailHTML() {
@@ -114,8 +171,9 @@ ${g.winner !== null ? resultHTML() : ''}`;
             actions = myTurn() && g.canAttack(unit) ? '<button class="act" data-act="attack">こうげき</button>'
                 : `<p class="why">${unit.enteredTurn === g.turn && !unit.haste ? '出した ターンは こうげき できない' : unit.stopTurn === g.turn ? '止められている' : 'いまは こうげき できない'}</p>`;
         }
-        const now = unit ? `<p class="now">いまの パワー：<b>${g.power(unit)}</b>${unit.item ? `　アイテム：${esc(unit.item.name)}` : ''}</p>` : '';
-        return `<div class="sheet" data-close="1"><div class="sheet-in">${cardHTML(card)}${now}<div class="acts">${actions}<button class="act sub" data-close="1">とじる</button></div></div></div>`;
+        const now = unit ? `<p class="now">いまの パワー：<b>${g.power(unit)}</b></p>` : '';
+        const item = unit?.item ? `<p class="now">付いている アイテム</p><div class="itemcard">${cardHTML(unit.item)}</div>` : '';
+        return `<div class="sheet" data-close="1"><div class="sheet-in">${cardHTML(card)}${now}${item}<div class="acts">${actions}<button class="act sub" data-close="1">とじる</button></div></div></div>`;
     }
 
     function askHTML() {
@@ -146,6 +204,7 @@ ${g.winner !== null ? resultHTML() : ''}`;
         if (k === 'e') { const u = cpu().field.find((x) => x.uid === uid); return { card: u.card, unit: u, from: 'enemy' }; }
         if (k === 's') return { card: p.scene, from: 'scene' };
         if (k === 'S') return { card: cpu().scene, from: 'scene' };
+        if (k === 'g') return { card: g.players[graveOf]?.grave[uid], from: 'grave' };
         return null;
     }
 
@@ -168,7 +227,7 @@ ${g.winner !== null ? resultHTML() : ''}`;
 
     root.onpointerdown = (e) => {
         const el = e.target.closest('.hand .mini.can, .buddy');
-        if (!el || !myTurn() || asking || detail || e.button > 0) return;
+        if (!el || !myTurn() || asking || detail || graveOf !== null || logOpen || e.button > 0) return;
         const d = find(el.dataset.key);
         if (!d?.card || !g.canPlay(me(), d.card)) return;
         drag = { el, card: d.card, from: d.from, x: e.clientX, y: e.clientY, ghost: null };
@@ -218,7 +277,15 @@ ${g.winner !== null ? resultHTML() : ''}`;
         }
         if (b.dataset.again) { startBattle(root, myDeck, { onQuit }); return; }
         if (b.classList.contains('quit')) { onQuit(); return; }
-        if (b.dataset.close && e.target === b) { detail = null; render(); return; }
+        if (b.dataset.close && e.target === b) {   // いちばん 上の 画面だけ とじる
+            if (detail) detail = null;
+            else if (graveOf !== null) graveOf = null;
+            else logOpen = false;
+            render();
+            return;
+        }
+        if (b.dataset.grave !== undefined) { graveOf = +b.dataset.grave; render(); return; }
+        if (b.dataset.log) { logOpen = true; render(); return; }
         if (b.classList.contains('end')) { if (myTurn()) await run(() => g.endTurn()); return; }
         if (b.dataset.act === 'play') {
             const { card, from } = detail;

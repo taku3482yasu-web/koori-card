@@ -106,12 +106,40 @@ async function main() {
     let shotDetail = false;
     let shotAsk = false;
     let dragged = false;
+    const seen = { arrow: false, crack: false, item: false, grave: false };
     while (steps++ < 600) {
         if (await js('!!document.querySelector(".result")')) break;
         if (await js('!!document.querySelector(".ask")')) {
             if (!shotAsk) { await snap('ask'); shotAsk = true; }
             await click('.ask [data-opt="0"]');
             await sleep(80);
+            continue;
+        }
+        // 演出が 出ているか (CPU の こうげき中も)
+        if (await js('!!document.querySelector(".arrow")')) seen.arrow = true;
+        if (await js('!!document.querySelector(".mini.crack")')) seen.crack = true;
+        // 墓地に カードが あれば 一覧を 開いて カードを 大きく 見る
+        if (!seen.grave && await js('document.querySelector(".side.mine .grave")?.textContent !== "墓地 0"')) {
+            await click('.side.mine .grave');
+            await sleep(60);
+            await snap('grave');
+            if (!(await click('.gravelist .mini'))) errors.push('墓地の 一覧が 出ない');
+            await sleep(60);
+            if (!(await js('!!document.querySelector(".sheet .card")'))) errors.push('墓地の カードが 大きく 出ない');
+            await click('.sheet-in:not(.wide) [data-close="1"].act');
+            await click('.sheet-in.wide [data-close="1"].act');
+            await sleep(60);
+            seen.grave = true;
+            continue;
+        }
+        // 相手の アイテムを 見る
+        if (!seen.item && await js('!!document.querySelector(".side.enemy .mini .it")')) {
+            await js('document.querySelector(".side.enemy .mini .it").closest(".mini").click()');
+            await sleep(60);
+            await snap('enemy-item');
+            if (!(await js('!!document.querySelector(".itemcard .card")'))) errors.push('相手の アイテムの カードが 出ない');
+            await click('.sheet [data-close="1"].act');
+            seen.item = true;
             continue;
         }
         const mine = await js('!document.querySelector(".bar .end").disabled');
@@ -143,12 +171,22 @@ async function main() {
             // こうげき先: いちばん下 (シールド) を えらぶ
             await js('(() => { const o = [...document.querySelectorAll(".ask .opt")]; o[o.length - 1].click(); })()');
             await sleep(150);
+            if (!seen.arrow && await js('!!document.querySelector(".arrow")')) { seen.arrow = true; await snap('arrow'); }
+            await sleep(600);
             continue;
         }
         await click('.bar .end');
         await sleep(300);
     }
     await snap('result');
+    // ログを ぜんぶ 見る
+    if (await click('.log')) {
+        await sleep(60);
+        const n = await js('document.querySelectorAll(".fulllog li").length');
+        if (n < 10) errors.push(`ログが ぜんぶ 出ない (${n} 行)`);
+    }
+    console.log(`ブラウザのテスト: 演出 ${JSON.stringify(seen)}`);
+    if (!seen.arrow) errors.push('こうげきの 矢印が 出なかった');
     const result = await js('document.querySelector(".result h2")?.textContent');
     const turn = await js('document.querySelector(".turn")?.textContent');
     if (!result) errors.push(`決着しなかった (${turn})`);

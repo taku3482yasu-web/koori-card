@@ -64,7 +64,8 @@ function newPlayer(id, name, deckId, cpu, rand) {
 }
 
 export class Game {
-    // opts: { players: [{ name, deck, cpu }] ×2, first: 0|1, rand, ask, onChange, delay }
+    // opts: { players: [{ name, deck, cpu }] ×2, first: 0|1, rand, ask, onChange, delay, fx }
+    //   fx({ type: 'attack', unit, target }) / fx({ type: 'destroy', unit }): 画面の 演出を 待つ (ルールは 画面に ふれない)
     constructor(opts) {
         const rand = opts.rand || Math.random;
         this.rand = rand;
@@ -78,6 +79,7 @@ export class Game {
         this.askFn = opts.ask;
         this.onChange = opts.onChange || (() => {});
         this.delay = opts.delay || (() => Promise.resolve());
+        this.fx = opts.fx || (() => Promise.resolve());
     }
 
     // ---------- 小さな 道具 ----------
@@ -299,6 +301,7 @@ export class Game {
             this.log(`ふるカワのお守りが ${u.name} を まもった`);
             return false;
         }
+        await this.fx({ type: 'destroy', unit: u });
         if (u.item?.no === NO_OF.tane) {
             this.detach(u);
             p.grave.push(u.item);
@@ -365,14 +368,16 @@ export class Game {
                 for (const x of o.field.filter((x) => this.power(x) <= 2000)) await this.destroy(x, '鏡筋一刀斬り');
             }
             if (target === 'shield') {
-                if (o.shields.length === 0) this.win(p, `${u.name} の ダイレクトアタック`);
+                if (o.shields.length === 0) { await this.fx({ type: 'attack', unit: u, target }); this.win(p, `${u.name} の ダイレクトアタック`); }
                 const n = DOUBLE_BREAK.has(u.no) ? 2 : 1;
                 this.log(`${u.name} が シールドを こうげき！`);
+                await this.fx({ type: 'attack', unit: u, target });
                 await this.breakShields(o, n);
             } else if (o.field.includes(target)) {
                 const ap = this.power(u, { attacking: true });
                 const dp = this.power(target);
                 this.log(`${u.name}（${ap}）が ${target.name}（${dp}）に こうげき！`);
+                await this.fx({ type: 'attack', unit: u, target });
                 await this.delay();
                 if (ap >= dp) {
                     const won = await this.destroy(target, 'バトルで まけた');
