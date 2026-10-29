@@ -193,6 +193,7 @@ export class Game {
             }
             for (const q of this.players) for (const u of q.field) u.mods = u.mods.filter((m) => m.until > this.turn);
             this.active = 1 - this.active;
+            await this.sweepZero();
             await this.beginTurn();
         } catch (e) { if (!(e instanceof GameOver)) throw e; }
     }
@@ -243,6 +244,7 @@ export class Game {
             await MAGIC[card.no]?.(this, p);
             p.grave.push(card);
         }
+        await this.sweepZero();
         this.onChange();
     }
 
@@ -276,11 +278,22 @@ export class Game {
         p.hand.push(u.card);
         this.log(`${u.name} は ${p.name} の 手札に もどった`);
     }
-    // やられる (バトル・効果)。お守りで 守られたら false
-    async destroy(u, why = '') {
+    // パワーが 0 以下の モンスターは やられる (お守りは 効かない・ふっかつのたねは 効く。2026-10-29 ユーザー回答)
+    async sweepZero() {
+        for (let more = true; more;) {
+            more = false;
+            for (const q of this.players) {
+                for (const u of [...q.field]) {
+                    if (q.field.includes(u) && this.power(u) <= 0) more = (await this.destroy(u, 'パワーが 0', { guard: false })) || more;
+                }
+            }
+        }
+    }
+    // やられる (バトル・効果)。お守りで 守られたら false (guard: false なら お守りは 効かない)
+    async destroy(u, why = '', { guard = true } = {}) {
         const p = this.players[u.owner];
         if (!p.field.includes(u)) return false;
-        if (u.item?.no === NO_OF.omamori) {
+        if (guard && u.item?.no === NO_OF.omamori) {
             p.grave.push(u.item);
             u.item = null;
             this.log(`ふるカワのお守りが ${u.name} を まもった`);
@@ -375,6 +388,7 @@ export class Game {
                 }
             }
             if (u.no === NO_OF.yukiusa && p.field.includes(u)) await this.bounce(u);
+            await this.sweepZero();
         } catch (e) { if (!(e instanceof GameOver)) throw e; }
         this.onChange();
         return true;

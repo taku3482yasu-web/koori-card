@@ -110,3 +110,21 @@ test('トリガーの モンスターは 場が いっぱいなら 押し出し�
     assert.equal(b.field.length, 3);
     assert.ok(b.field.some((u) => u.no === 33));
 });
+
+test('パワーが 0 以下に なったら やられる (お守りは 効かない・ふっかつのたねは 効く)', async () => {
+    const g = new Game({ players: [{ name: 'A', deck: 'koori', cpu: true }, { name: 'B', deck: 'oni', cpu: true }], first: 0, rand: seeded(7) });
+    await g.start();
+    const [a, b] = g.players;
+    const t = await g.enter(b, { ...cardByNo(4), uid: 9301 });   // ツララボウ 1000
+    t.item = { ...cardByNo(28), uid: 9302 };                     // ふるカワのお守り
+    await g.use(a, { ...cardByNo(6), uid: 9303 });               // ユキオンナン: -3000
+    assert.ok(!b.field.includes(t));
+    assert.ok(b.grave.some((c) => c.uid === 9301) && b.grave.some((c) => c.uid === 9302));
+
+    const s = await g.enter(b, { ...cardByNo(4), uid: 9304 });
+    s.item = { ...cardByNo(58), uid: 9305 };                     // ふっかつのたね
+    s.mods.push({ amount: -1000, until: g.turn + 1 });
+    await g.use(a, { ...cardByNo(13), uid: 9306 });              // なにかを 出したら たしかめる
+    assert.ok(!b.field.includes(s));
+    assert.ok(b.hand.some((c) => c.uid === 9304));
+});
