@@ -22,7 +22,7 @@ function wantMagic(g, p, c) {
 function wantScene(p, c) {
     const race = SCENE_RACE[c.no];
     if (p.scene?.no === c.no) return false;
-    return [...p.field, ...p.hand].filter((x) => x.race === race).length >= 2;
+    return [...p.field, ...p.hand].filter((x) => x.kind === 'monster' && x.race === race).length >= 2;
 }
 
 // 1 つ 出す。出したら true

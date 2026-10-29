@@ -128,3 +128,25 @@ test('パワーが 0 以下に なったら やられる (お守りは 効かな
     assert.ok(!b.field.includes(s));
     assert.ok(b.hand.some((c) => c.uid === 9304));
 });
+
+test('ブロッカー: アンタップなら 攻撃を かわりに うけ、タップする。タップ中は ブロックできない', async () => {
+    const g = new Game({ players: [{ name: 'A', deck: 'koori', cpu: true }, { name: 'B', deck: 'oni', cpu: true }], first: 0, rand: seeded(8) });
+    await g.start();
+    const [a, b] = g.players;
+    const atk = await g.enter(a, { ...cardByNo(40), uid: 9401 });   // ハリー 4000 (A の 場に)
+    atk.enteredTurn = 0;
+    const blk = await g.enter(b, { ...cardByNo(37), uid: 9402 });   // だけさん 3000 (相手の ターンは 6000)
+    const shields = b.shields.length;
+    await g.attack(atk, 'shield');
+    assert.equal(b.shields.length, shields);    // ブロックされて シールドは 割れない
+    assert.ok(!a.field.includes(atk));          // 4000 は 6000 に まける
+    assert.ok(blk.tapped);
+
+    const atk2 = await g.enter(a, { ...cardByNo(40), uid: 9403 });
+    atk2.enteredTurn = 0;
+    await g.attack(atk2, 'shield');             // タップ中の だけさんは ブロックできない
+    assert.equal(b.shields.length, shields - 1);
+
+    await g.endTurn();                          // B の ターンで アンタップ
+    assert.equal(blk.tapped, false);
+});

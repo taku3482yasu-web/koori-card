@@ -15,6 +15,7 @@ export const slotsOf = (lv) => lv + 2;   // Lv1 3 体・Lv2 4 体・Lv3 5 体
 
 const HASTE = new Set([2, 32]);          // 速攻
 const DOUBLE_BREAK = new Set([7, 35]);   // 2 枚割り
+const BLOCKER = new Set([3, 9, 37, 38]); // ブロッカー (アンタップなら 相手の 攻撃を かわりに うける。2026-10-29)
 const NO_OF = {
     yukiusa: 2, tsurara: 4, penguin: 8, kogame: 9, okagappa: 11, zumitani: 15, sakura: 16, yasu: 18,
     koonin: 32, dake: 37, shibata: 42, nozoema: 43, hannya: 44, spam: 45, daishi: 46,
@@ -163,6 +164,8 @@ export class Game {
         return '';
     }
     maxAttacks(u) { return u.no === NO_OF.zumitani ? 2 : 1; }
+    isBlocker(u) { return BLOCKER.has(u.no); }
+    canBlock(u) { return this.isBlocker(u) && !u.tapped; }
     canAttack(u) {
         if (this.winner !== null || u.owner !== this.active) return false;
         if (u.attacks >= this.maxAttacks(u)) return false;
@@ -181,7 +184,7 @@ export class Game {
         this.turn++;
         const p = this.players[this.active];
         p.summoned = false;
-        for (const u of p.field) u.attacks = 0;
+        for (const u of p.field) { u.attacks = 0; u.tapped = false; }   // 自分の ターンの はじめに アンタップ
         this.log(`── ${this.turn} ターン目：${p.name} ──`);
         if (this.turn > 1) this.draw(p);
         this.onChange();
@@ -251,7 +254,7 @@ export class Game {
     }
 
     async enter(p, card) {
-        const u = { ...card, card, owner: p.id, item: null, enteredTurn: this.turn, attacks: 0, mods: [], stopTurn: 0, haste: HASTE.has(card.no) };
+        const u = { ...card, card, owner: p.id, item: null, enteredTurn: this.turn, attacks: 0, tapped: false, mods: [], stopTurn: 0, haste: HASTE.has(card.no) };
         p.field.push(u);
         this.onChange();
         await ENTER[card.no]?.(this, p, u);
@@ -363,10 +366,12 @@ export class Game {
         const o = this.opp(p);
         try {
             u.attacks++;
+            u.tapped = true;   // 攻撃したら タップ (次の 自分の ターンまで ブロックできない)
             if (u.no === NO_OF.nozoema) {
                 this.log('ノゾエマの 鏡筋一刀斬り！');
                 for (const x of o.field.filter((x) => this.power(x) <= 2000)) await this.destroy(x, '鏡筋一刀斬り');
             }
+            target = await this.askBlock(u, target);
             if (target === 'shield') {
                 if (o.shields.length === 0) { await this.fx({ type: 'attack', unit: u, target }); this.win(p, `${u.name} の ダイレクトアタック`); }
                 const n = DOUBLE_BREAK.has(u.no) ? 2 : 1;
@@ -397,6 +402,29 @@ export class Game {
         } catch (e) { if (!(e instanceof GameOver)) throw e; }
         this.onChange();
         return true;
+    }
+
+    // ブロック: 相手は アンタップの ブロッカーで 攻撃を かわりに うけられる (ブロックした モンスターは タップ)
+    async askBlock(u, target) {
+        const o = this.opp(this.players[u.owner]);
+        const list = o.field.filter((b) => b !== target && this.canBlock(b));
+        if (!list.length) return target;
+        const ap = this.power(u, { attacking: true });
+        const direct = target === 'shield' && o.shields.length === 0;
+        const what = target === 'shield' ? (direct ? 'ダイレクトアタック' : 'シールドへの こうげき') : `${target.name} への こうげき`;
+        const b = await this.ask(o, {
+            title: `${u.name}（${ap}）の ${what}！ ブロックする？`,
+            options: list.map((x) => {
+                const dp = this.power(x);
+                const res = dp > ap ? 'かてる' : dp === ap ? 'あいうち' : 'まける';
+                return { label: `${x.name}（${dp}）で ブロック → ${res}`, value: x, card: x, score: (dp > ap ? 2 : dp === ap ? 1 : 0) + (direct ? 5 : 0) + dp / 100000 };
+            }),
+            cancel: 'ブロックしない', cancelScore: 1
+        });
+        if (!b) return target;
+        b.tapped = true;
+        this.log(`${b.name} が ブロックした！`);
+        return b;
     }
 
     // シールドを 割る。2 枚目・4 枚目で Lv アップ、ドタバタトリガーは タダで 使える (Lv に 関係なく)

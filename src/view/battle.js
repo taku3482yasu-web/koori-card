@@ -87,13 +87,14 @@ export function startBattle(root, myDeck, { onQuit }) {
         const pw = unit ? g.power(unit) : card.power;
         const diff = unit ? pw - card.power : 0;
         const ready = unit && unit.owner === 0 && g.active === 0 && g.canAttack(unit);
-        return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''}" data-key="${key}">
+        return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''} ${unit?.tapped ? 'tapped' : ''}" data-key="${key}">
     <span class="pic">${pic(card)}</span>
     <span class="lv">${card.lv}</span>
     <span class="nm">${esc(card.name)}</span>
     ${card.kind === 'monster' ? `<span class="pw ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${pw}</span>` : `<span class="kd">${{ magic: '魔法', field: '場面', item: 'アイテム' }[card.kind]}</span>`}
     ${unit?.item ? `<span class="it">＋${esc(unit.item.name)}</span>` : ''}
     ${unit && unit.stopTurn > g.turn ? '<span class="st">止</span>' : ''}
+    ${g.isBlocker(card) ? `<span class="bk ${unit && !unit.tapped ? 'on' : ''}" title="ブロッカー">盾</span>` : ''}
     ${card.dt ? '<span class="dtm">⚡</span>' : ''}
 </${tag}>`;
     }
@@ -171,7 +172,7 @@ ${g.winner !== null ? resultHTML() : ''}`;
             actions = myTurn() && g.canAttack(unit) ? '<button class="act" data-act="attack">こうげき</button>'
                 : `<p class="why">${unit.enteredTurn === g.turn && !unit.haste ? '出した ターンは こうげき できない' : unit.stopTurn === g.turn ? '止められている' : 'いまは こうげき できない'}</p>`;
         }
-        const now = unit ? `<p class="now">いまの パワー：<b>${g.power(unit)}</b></p>` : '';
+        const now = unit ? `<p class="now">いまの パワー：<b>${g.power(unit)}</b>${unit.tapped ? '（タップ中）' : ''}</p>` : '';
         const item = unit?.item ? `<p class="now">付いている アイテム</p><div class="itemcard">${cardHTML(unit.item)}</div>` : '';
         return `<div class="sheet" data-close="1"><div class="sheet-in">${cardHTML(card)}${now}${item}<div class="acts">${actions}<button class="act sub" data-close="1">とじる</button></div></div></div>`;
     }
@@ -217,7 +218,9 @@ ${g.winner !== null ? resultHTML() : ''}`;
             return { label: `${t.name}（${dp}）${ap > dp ? '→ かてる' : ap === dp ? '→ あいうち' : '→ まける'}`, value: t, card: t };
         });
         options.push({ label: o.shields.length ? `シールドを わる（のこり ${o.shields.length} 枚）` : 'ダイレクトアタック！', value: 'shield' });
-        return new Promise((resolve) => { asking = { req: { title: `${u.name}（${ap}）で こうげき`, options, cancel: 'やめる' }, resolve }; render(); });
+        const guard = o.field.filter((b) => g.canBlock(b));
+        const title = `${u.name}（${ap}）で こうげき${guard.length ? `（ブロッカー：${guard.map((b) => b.name).join('・')}）` : ''}`;
+        return new Promise((resolve) => { asking = { req: { title, options, cancel: 'やめる' }, resolve }; render(); });
     }
 
     // 手札を おしたまま 上へ 動かして、自分の 場で はなすと そのまま 出す (タップは いままでどおり 大きく 出る)

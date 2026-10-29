@@ -12,14 +12,15 @@ test('名前が かぶっていない', () => {
     assert.equal(new Set(CARDS.map((c) => c.name)).size, CARDS.length);
 });
 
-test('モンスターは 種族 (7 属性) と パワーを持ち、ほかは 持たない', () => {
+test('モンスターは 種族 と パワー、魔法・場面は 属性 (7 属性) を持ち、アイテムは どちらも 持たない', () => {
     for (const c of CARDS) {
         assert.ok(KINDS[c.kind], c.name);
         if (c.kind === 'monster') {
             assert.ok(RACES.includes(c.race), c.name);
             assert.ok(c.power > 0 && c.power % 1000 === 0, c.name);
         } else {
-            assert.equal(c.race, undefined, c.name);
+            if (c.kind === 'item') assert.equal(c.race, undefined, c.name);
+            else assert.ok(RACES.includes(c.race), c.name);
             assert.equal(c.power, undefined, c.name);
         }
         assert.ok([1, 2, 3].includes(c.lv), c.name);
@@ -33,4 +34,10 @@ test('構築済みデッキは それぞれ 30 種で、4 枚まで入れて 50 
         assert.ok(list.reduce((n, c) => n + c.max, 0) >= 50, d.name);
         assert.equal(cardByNo(d.buddy).deck, id, d.name);
     }
+});
+
+test('魔法の 属性: ふるカワ・ともいし・道具は ふつう、キャラの 技は その キャラと 同じ', () => {
+    for (const no of [22, 23, 24, 52, 53, 54]) assert.equal(cardByNo(no).race, 'ふつう', cardByNo(no).name);
+    assert.equal(cardByNo(19).race, cardByNo(1).race);    // コオリハンマー = こおりくん
+    assert.equal(cardByNo(49).race, cardByNo(31).race);   // 鬼鬼の金棒 = おにおに
 });

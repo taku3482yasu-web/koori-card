@@ -180,6 +180,11 @@ body {
 .mini .it { font-size: 9px; color: var(--item-edge); }
 .mini .st { position: absolute; right: 3px; bottom: 3px; padding: 0 3px; border-radius: 3px; background: #c33; font-size: 9px; }
 .mini .dtm { position: absolute; right: 3px; top: 2px; color: var(--dt); }
+/* ブロッカーの 盾 (アンタップで ブロックできるときは 光る)・タップ (攻撃した・ブロックした) */
+.mini .bk { position: absolute; left: 3px; bottom: 3px; padding: 0 3px; border-radius: 3px; background: #445; color: #aab; font-size: 9px; font-weight: bold; }
+.mini .bk.on { background: #6fc3ff; color: #102030; }
+.mini.tapped { transform: rotate(7deg) scale(0.94); filter: brightness(0.65); }
+.mini.tapped::before { content: 'タップ'; position: absolute; left: 50%; top: 40%; transform: translateX(-50%); padding: 0 4px; border-radius: 3px; background: rgba(0, 0, 0, 0.7); font-size: 9px; z-index: 1; }
 .hand .mini:not(.can) { opacity: 0.55; }
 .mini.ready { box-shadow: 0 0 0 2px var(--lv), 0 0 10px var(--lv); }
 /* 手札を おしたまま 場へ (たては ドラッグ・よこは 手札の スクロール) */

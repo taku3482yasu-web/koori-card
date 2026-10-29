@@ -1,7 +1,7 @@
 // =====================================================================
 // カード 1 枚の 見た目 (ユーザーの デザイン案「こおりくんカード デザイン案」に 合わせた)
 //   モンスター: 紺に 水色の 枠 / 魔法・場面: 紫 / アイテム: 緑
-//   上: 左上の 丸い 数字 + 名前 / まんなか: イラスト / 下: 種族・パワー か 種類ラベル / 効果欄 (ドタバタトリガーの 黄色い マーク)
+//   上: 左上の 丸い 数字 + 名前 / まんなか: イラスト / 下: 種族・パワー か 種類ラベル・属性 (魔法・場面) / 効果欄 (ドタバタトリガーの 黄色い マーク)
 // =====================================================================
 import { KINDS } from '../data/cards.js';
 import { artURL } from '../art/index.js';
@@ -23,7 +23,7 @@ export function pic(card) {
 export function cardHTML(card) {
     const mid = card.kind === 'monster'
         ? `<span class="race">種族：${esc(card.race)}</span><span class="power"><small>パワー</small>${card.power}</span>`
-        : `<span class="label">${KINDS[card.kind]}</span><span class="note">${NOTE[card.kind]}</span>`;
+        : `<span class="label">${KINDS[card.kind]}</span>${card.race ? `<span class="race">属性：${esc(card.race)}</span>` : ''}<span class="note">${NOTE[card.kind]}</span>`;
     const text = card.text || (card.dt ? '' : '（効果なし）');
     return `<article class="card ${card.kind}" data-no="${card.no}">
     <header><span class="lv">${card.lv}</span><span class="name">${esc(card.name)}</span></header>
