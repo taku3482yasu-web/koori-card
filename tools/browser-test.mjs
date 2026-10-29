@@ -146,12 +146,13 @@ async function main() {
         if (!mine) { await sleep(200); continue; }
         // さいしょの 1 枚は ドラッグで 出す (大きな 画面は 出ずに 手札が へる か 選ぶ 画面が 出る)
         if (!dragged && await js('!!document.querySelector(".hand .mini.can")')) {
-            const before = await js('document.querySelectorAll(".hand .mini").length');
+            // 枚数では なく その カードが 手札から 消えたかで たしかめる (2 枚 引く 魔法だと 枚数は へらない)
+            const key = await js('document.querySelector(".hand .mini.can").dataset.key');
             await dragTo('.hand .mini.can', '.side.mine .zone');
             await sleep(200);
-            const after = await js('document.querySelectorAll(".hand .mini").length');
+            const still = await js(`!!document.querySelector('.hand [data-key="${key}"]')`);
             if (await js('!!document.querySelector(".sheet:not(.ask)")')) errors.push('ドラッグしたのに 大きな 画面が 出た');
-            else if (after >= before && !(await js('!!document.querySelector(".ask")'))) errors.push('ドラッグで 手札が 出なかった');
+            else if (still && !(await js('!!document.querySelector(".ask")'))) errors.push('ドラッグで 手札が 出なかった');
             else console.log('ブラウザのテスト: ドラッグで 手札を 場に 出せた');
             dragged = true;
             continue;
