@@ -13,6 +13,8 @@
 //     turnStart 自分の ターンの はじめ (場面) / oppDiscard 相手が 手札を 捨てた (場面) / attach アイテムを 付けた /
 //     breakShield アイテム: シールドを 割った / guard アイテム: やられる かわり / grantBlocker アイテム: ブロッカーに する /
 //     unblockable アイテム: ブロックされない / extraBreaks アイテム: 割る 枚数を ふやす / grantHaste アイテム: 速攻
+//   パック: magicImmune 相手の 魔法で 選ばれない / allBlockers 味方 ぜんぶ ブロッカー / anyBlockWin 味方が ブロックで 勝つたび /
+//     sceneAttack 場面: 攻撃するとき / unblockable(g, u) 条件つきで ブロックされない / block が { killAttacker } を 返すと バトルせず 攻撃側を 墓地へ
 //   want(g, p): CPU が 使いたいか (魔法・場面・アイテム)
 // 「〇〇の モンスター」は 右上の エンブレム (team)。「こおりくん」「おにおに」は 名前が そう はじまる カード
 // =====================================================================
@@ -476,7 +478,239 @@ export const EFFECTS = {
         magic: async (g, p) => { for (const u of p.field) u.mods.push({ amount: u.muscle ? 2000 : 1000, until: thisTurn(g) }); g.log('パンプアップ！'); },
         want: (g, p) => p.field.filter((u) => g.canAttack(u)).length >= 2
     },
-    215: { attach: async (g, p, u) => g.addMuscle(u, 2) }
+    215: { attach: async (g, p, u) => g.addMuscle(u, 2) },
+    // ===================== パック 第 1 弾 (docs/pack1.md。2026-11-03) =====================
+    // ----- ばりきつよめ -----
+    301: { enter: async (g, p, u) => { if (team(p, 'bariki', u).length) g.draw(p, 1); } },
+    302: { blocker: true, power: (g, u) => (team(g.players[u.owner], 'bariki', u).length ? 1000 : 0) },
+    303: {
+        magic: async (g, p) => {
+            const u = await pickOwn(g, p, 'ばりきコール：パワーを 上げる モンスターを えらんでね');
+            if (!u) return;
+            const n = u.team === 'bariki' ? 3000 : 2000;
+            u.mods.push({ amount: n, until: thisTurn(g) });
+            g.log(`${u.name} の パワーが この ターン +${n}`);
+        },
+        want: (g, p) => p.field.some((u) => g.canAttack(u))
+    },
+    304: { enter: async (g, p) => search(g, p, (c) => c.kind === 'monster' && c.team === 'bariki', '山札から 手札に 加える ばりきつよめの モンスターを えらんでね') },
+    305: { itemPower: () => 2000, itemDestroyed: async (g, p, u) => { if (u.team === 'bariki') g.draw(p, 1); } },
+    306: { aura: (g, src, u) => (u.owner === src.owner && u.team === 'bariki' ? 1000 : 0) },
+    307: { scene: (g, owner, u, ctx) => (u.owner === owner.id && ctx.attacking && team(owner, 'bariki').length >= 3 ? 2000 : 0), want: (g, p) => team(p, 'bariki').length >= 2 },
+    308: { blocker: true, destroyed: async (g, p) => { if (p.deck.length > 2) { p.shields.push(g.takeTop(p)); g.log(`やすさん・ばりきMAX：${p.name} の シールドが 1 枚 ふえた`); g.draw(p, 1); } } },
+    309: { enter: async (g, p) => { await stopOne('たむキック 連打', false)(g, p); await stopOne('たむキック 連打', false)(g, p); } },
+    310: { blocker: true, power: (g, u) => (g.active !== u.owner ? 3000 : 0), blockWin: async (g, p) => { const o = g.opp(p); if (o.shields.length) { g.log('だけさんの 反撃！'); await g.breakShields(o, 1); } } },
+    311: {
+        breaks: 2,
+        power: (g, u) => 1000 * team(g.players[u.owner], 'bariki', u).length,
+        enter: async (g, p) => {
+            for (let i = 0; i < 2; i++) if (!(await graveToHand(g, p, (c) => c.kind === 'monster' && c.team === 'bariki', `墓地から 手札に 戻す ばりきつよめの モンスターを えらんでね（あと ${2 - i} 体）`))) return;
+        }
+    },
+    // ----- 氷隊 -----
+    312: { enter: async (g, p, u) => { if (p.field.some((x) => x !== u && isKoori(x))) await tapOne('ツララコウモリ', false)(g, p); } },
+    313: { power: (g, u) => (g.players[u.owner].field.some(isKoori) ? 1000 : 0) },
+    314: {
+        magic: async (g, p) => {
+            const u = await pickOwn(g, p, 'ひんやりサポート：パワー +3000 する こおりくんを えらんでね', isKoori);
+            if (u) { u.mods.push({ amount: 3000, until: thisTurn(g) }); g.log(`${u.name} の パワーが この ターン +3000`); } else g.draw(p, 1);
+        },
+        want: (g, p) => p.field.some((u) => isKoori(u) && g.canAttack(u)) || canDraw(g, p)
+    },
+    315: { blocker: true, destroyed: async (g, p) => search(g, p, isKoori, '山札から 手札に 加える こおりくんを えらんでね') },
+    316: { itemPower: () => 1000, guard: (g, u) => isKoori(u) },
+    317: {
+        enter: async (g, p) => {
+            const u = await pickOwn(g, p, 'アンタップして パワー +2000 する こおりくんを えらんでね', isKoori);
+            if (!u) return;
+            u.tapped = false;
+            u.mods.push({ amount: 2000, until: thisTurn(g) });
+            g.log(`${u.name} を アンタップ・パワー +2000`);
+        }
+    },
+    318: { scene: (g, owner, u) => (u.owner === owner.id && isKoori(u) ? 2000 : 0), want: (g, p) => [...p.field, ...p.hand].some(isKoori) },
+    319: { magic: async (g, p) => killOne(p.field.some(isKoori) ? 7000 : 5000, 'コオリソード・極')(g, p), want: (g, p) => hasTarget(p.field.some(isKoori) ? 7000 : 5000)(g, p) },
+    320: { blocker: true, enter: draw(2), aura: (g, src, u) => (u.owner === src.owner && isKoori(u) ? 1000 : 0) },
+    321: { evolveFrom: isKoori, breaks: 2, enter: killOne(0, '絶対殺すソード', false) },
+    322: { evolveFrom: isKoori, breaks: 2, attack: async (g, p) => { g.log('絶対殺すソード・レクイエム！'); await killAll(5000, 'レクイエム')(g, p); } },
+    // ----- 鬼鬼団 -----
+    323: { destroyed: async (g, p) => g.draw(p, 1) },
+    324: { blocker: (g, u) => g.players[u.owner].field.some(isOni) },
+    325: { magic: async (g, p) => { if (!(await search(g, p, (c) => c.name.includes('おにおに'), '山札から 手札に 加える「おにおに」を えらんでね'))) g.log('おにおにが 山札に いない'); }, want: (g, p) => p.deck.some((c) => c.name.includes('おにおに')) && p.hand.length <= 6 },
+    326: { attack: async (g, p, u) => { if (p.field.some((x) => x !== u && isOni(x))) await killOne(2000, 'エンジョウボウズ', false)(g, p); } },
+    327: { itemPower: (g, u) => (isOni(u) ? 2000 : 1000), guard: (g, u) => isOni(u) },
+    328: { aura: (g, src, u) => (u.owner === src.owner && isOni(u) ? 1000 : 0) },
+    329: { sceneAttack: async (g, p, u) => { if (isOni(u)) await g.discard(g.opp(p), 1, '鬼鬼団のアジト：捨てる カード'); }, want: (g, p) => [...p.field, ...p.hand].some(isOni) },
+    330: {
+        magic: async (g, p) => { await EFFECTS[102].magic(g, p); g.draw(p, 1); },
+        want: (g, p) => EFFECTS[102].want(g, p)
+    },
+    331: { evolveFrom: (u) => u.name.startsWith('おにおに（'), haste: true, enter: killOne(3000, '紅蓮', false) },
+    332: {
+        evolveFrom: (u) => u.name.startsWith('おにおに（'), breaks: 2,
+        attack: async (g, p) => { for (const e of g.opp(p).field.filter((x) => x.item)) g.dropItem(e, '金棒くだき'); }
+    },
+    333: { evolveFrom: (u) => u.name.startsWith('おにおに・鬼神'), breaks: 3, enter: async (g, p) => { g.log('鬼の王 覚醒！'); await killAll(6000, '鬼の王 覚醒')(g, p); } },
+    // ----- ASK-3 -----
+    334: {
+        enter: async (g, p) => {
+            if (!p.hand.length || p.deck.length < 3) return;
+            const ok = await g.ask(p, { title: '手札を 1 枚 捨てて 1 枚 引く？', options: [{ label: '捨てて 引く', value: true, score: 0.4 }], cancel: 'しない', cancelScore: 0.5 });
+            if (ok) { await g.discard(p, 1, '捨てる カード'); g.draw(p, 1); }
+        }
+    },
+    335: { blocker: true },
+    336: { magic: tapOne('スパム送信'), want: (g, p) => g.opp(p).field.some((u) => !u.tapped && g.isBlocker(u)) },
+    337: { enter: async (g, p) => { if (g.opp(p).shields.length > p.shields.length) g.draw(p, 1); } },
+    338: {
+        itemPower: (g, u) => (u.name.startsWith('KING.ASAHARA') ? 3000 : 2000),
+        breakShield: async (g, p, u) => { if (u.name.startsWith('KING.ASAHARA')) await g.discard(g.opp(p), 1, 'CS城の剣：捨てる カード'); }
+    },
+    339: { enter: async (g, p) => { await peekDiscard(g, p); g.draw(p, 1); } },
+    340: { scene: (g, owner, u) => (u.owner === owner.id && owner.shields.length <= 2 ? 3000 : 0), want: (g, p) => p.shields.length <= 3 && p.field.length >= 1 },
+    341: { haste: true, enter: async (g, p) => { for (const e of g.opp(p).field) if (!e.tapped) g.tap(e); g.log('完全計算！ 相手の モンスターを すべて タップ'); } },
+    342: { magic: async (g, p) => g.breakShields(g.opp(p), p.shields.length <= 2 ? 3 : 2), want: (g, p) => g.opp(p).shields.length > 0 },
+    343: { breaks: 3, unblockable: (g, u) => g.players[u.owner].shields.length <= 3 },
+    344: {
+        magic: async (g, p) => {
+            const o = g.opp(p);
+            if (p.shields.length <= 1) { g.log('ASAPANCHI・ゼロ！！ 真の 一発逆転！'); await g.breakShields(o, o.shields.length); } else await g.breakShields(o, 2);
+        },
+        want: (g, p) => g.opp(p).shields.length > 0
+    },
+    // ----- 5DX -----
+    345: { enter: async (g, p) => { if (g.active === p.id && p.magicCount > 0) g.draw(p, 1); } },
+    346: { blocker: true },
+    347: { magic: async (g, p) => g.draw(p, p.field.some((u) => u.name.startsWith('おかがっぱ')) ? 2 : 1), want: canDraw },
+    348: { enter: async (g, p) => graveToHand(g, p, (c) => c.kind === 'magic', '墓地から 手札に 戻す 魔法を えらんでね') },
+    349: { itemPower: (g, u) => 1000 + (g.active === u.owner && g.players[u.owner].magicCount > 0 ? 2000 : 0) },
+    350: { blocker: true, breaks: (g, u) => (g.players[u.owner].field.some((x) => x.name.startsWith('おかがっぱ') || x.name.startsWith('ひびきまくり')) ? 2 : 1) },
+    351: { onMagicScene: async (g, p) => { if (p.liveTurn === g.turn) return; p.liveTurn = g.turn; g.log('ライブハウス：1 枚 引く'); g.draw(p, 1); }, want: (g, p) => p.hand.some((c) => c.kind === 'magic') },
+    352: {
+        magic: async (g, p) => {
+            const n = p.field.some((u) => u.name.startsWith('ひびきまくり')) ? 3000 : 2000;
+            for (const u of g.opp(p).field) u.mods.push({ amount: -n, until: thisTurn(g) });
+            g.log(`響けまくり！ 相手の モンスター すべて -${n}`);
+        },
+        want: (g, p) => g.opp(p).field.length >= 2
+    },
+    353: {
+        power: (g, u, ctx) => (ctx.attacking ? 2000 : 0),
+        onMagic: async (g, p, u) => { if (u.echoTurn === g.turn) return; u.echoTurn = g.turn; await killOne(3000, 'おかピポMAX', false)(g, p); }
+    },
+    354: {
+        magicLvDown: true,
+        enter: async (g, p) => { for (let i = 0; i < 2; i++) if (!(await graveToHand(g, p, (c) => c.kind === 'magic', `墓地から 手札に 戻す 魔法を えらんでね（あと ${2 - i} 枚）`))) return; }
+    },
+    355: {
+        enter: async (g, p) => {
+            const list = fromGrave(p, (c) => c.kind === 'magic');
+            if (!list.length) return;
+            const c = await g.ask(p, { title: '3人そろって：墓地から 使う 魔法を えらんでね', options: list.map((x) => ({ label: x.name, value: x, card: x, score: x.lv })), cancel: 'やめる' });
+            if (!c) return;
+            p.grave.splice(p.grave.indexOf(c), 1);
+            await g.castFree(p, c);
+        },
+        onMagic: async (g, p, u) => { u.mods.push({ amount: 2000, until: thisTurn(g) }); g.log('チーム5DXの パワーが +2000'); }
+    },
+    // ----- お願いマッスル -----
+    356: { winBattle: async (g, p, u) => g.addMuscle(u, 1) },
+    357: { blocker: (g, u) => (u.muscle || 0) > 0 },
+    358: { magic: muscleOne(1), want: (g, p) => p.field.length > 0 },
+    359: { blocker: true, enter: muscleOne(1) },
+    360: { attach: async (g, p, u) => g.addMuscle(u, 1), itemDestroyed: async (g, p) => g.draw(p, 1) },
+    361: { winBattle: async (g, p, u) => { const o = g.opp(p); if (o.shields.length) { g.log('バルクアップ！'); await g.breakShields(o, 1); } if (p.field.includes(u)) g.addMuscle(u, 1); } },
+    362: { scene: (g, owner, u) => (u.owner === owner.id && (u.muscle || 0) > 0 && g.active !== owner.id ? 2000 : 0), want: (g, p) => p.field.some((u) => u.muscle) },
+    363: {
+        magic: async (g, p) => {
+            const a = await pickOwn(g, p, '合体ポーズ：筋肉 +1 する モンスターを えらんでね（1 体め）');
+            if (a) g.addMuscle(a, 1);
+            const b = await pickOwn(g, p, '合体ポーズ：筋肉 +1 する モンスターを えらんでね（2 体め）', (x) => x !== a);
+            if (b) g.addMuscle(b, 1);
+            g.draw(p, 1);
+        },
+        want: (g, p) => p.field.length > 0
+    },
+    364: { haste: true, enter: async (g, p) => { for (const u of p.field) g.addMuscle(u, 1); } },
+    365: { power: (g, u) => 1000 * (u.muscle || 0), aura: (g, src, u) => (u.owner === src.owner ? 1000 * (u.muscle || 0) : 0) },
+    366: { breaks: 2, enter: async (g, p) => { for (const u of p.field) g.addMuscle(u, 2); } },
+    // ----- バータス -----
+    367: { power: (g, u) => (g.opp(g.players[u.owner]).hand.length > g.players[u.owner].hand.length ? 1000 : 0) },
+    368: { enter: tapOne('カミナリグモ', false) },
+    369: { magic: async (g, p) => g.discardRandom(g.opp(p), 'すりかえ'), want: (g, p) => g.opp(p).hand.length > 0 },
+    370: { enter: peekDiscard },
+    371: { itemAttack: async (g, p) => g.discardRandom(g.opp(p), '怪盗のマント') },
+    372: {
+        enter: async (g, p) => {
+            const o = g.opp(p);
+            if (!o.hand.length) return;
+            const c = o.hand.splice(Math.floor(g.rand() * o.hand.length), 1)[0];
+            p.hand.push(c);
+            g.log(`ノラハンが ${o.name} の 手札から 1 枚 ねこばば！`);
+            await g.discard(o, 1, 'ねこまっしぐら：捨てる カード');
+        }
+    },
+    373: { scene: (g, owner, u) => (u.owner === owner.id && g.opp(owner).hand.length <= 3 ? 2000 : 0), want: (g, p) => p.field.length >= 1 },
+    374: {
+        magic: async (g, p) => { for (const e of g.opp(p).field.filter((x) => x.item)) g.dropItem(e, 'ぜんぶいただき'); await g.discard(g.opp(p), 1, 'ぜんぶいただき：捨てる カード'); },
+        want: (g, p) => g.opp(p).field.some((u) => u.item) || g.opp(p).hand.length > 0
+    },
+    375: { haste: true, attack: async (g, p) => { await tapOne('ハサミの舞', false)(g, p); await tapOne('ハサミの舞', false)(g, p); } },
+    376: { enter: async (g, p) => { await peekDiscard(g, p); await peekDiscard(g, p); } },
+    377: {
+        enter: async (g, p) => {
+            if (p.field.length >= g.slots(p)) return;
+            const t = await g.pickEnemy(p, '怪盗団：うばう 相手の モンスターを えらんでね');
+            if (t) g.steal(t, p);
+        }
+    },
+    // ----- ケモノミチ -----
+    378: { blocker: true, block: async () => ({ def: 2000, log: 'オバケカボチャ：パワー +2000' }) },
+    379: { blocker: true },
+    380: {
+        magic: async (g, p) => {
+            const u = await pickOwn(g, p, 'けものの遠吠え：アンタップする ブロッカーを えらんでね', (x) => g.isBlocker(x));
+            if (!u) return;
+            u.tapped = false;
+            u.mods.push({ amount: 2000, until: g.turn + 1, oppTurnOnly: true });
+            g.log(`${u.name} を アンタップ・次の 相手の ターン +2000`);
+        },
+        want: (g, p) => p.field.some((u) => g.isBlocker(u))
+    },
+    381: { attacked: () => ({ atk: -2000, log: 'バグムシの カウンター！ 攻撃してきた モンスター -2000' }) },
+    382: { grantBlocker: () => true, itemPower: (g, u) => (g.active !== u.owner ? 2000 : 0) },
+    383: { blocker: true, blockWin: async (g, p) => g.draw(p, 1) },
+    384: { scene: (g, owner, u, ctx) => (u.owner !== owner.id && ctx.attacking ? -1000 : 0), want: (g, p) => p.field.length >= 1 },
+    385: { magic: async (g, p) => killOne(p.field.some((u) => g.isBlocker(u)) ? 7000 : 5000, '返り討ち')(g, p), want: (g, p) => hasTarget(p.field.some((u) => g.isBlocker(u)) ? 7000 : 5000)(g, p) },
+    386: { allyBlock: async (g, p, s, d, u) => { if (g.power(u, { attacking: true }) <= 5000) { g.log('夜明けの遠吠え！'); await g.destroy(u, 'NAITOON・夜明けの遠吠え'); } } },
+    387: { blocker: true, block: async () => ({ killAttacker: true, log: 'イシイー・獣道の王の カウンター！' }) },
+    388: { blocker: true, allBlockers: true, anyBlockWin: async (g, p) => { const o = g.opp(p); if (o.shields.length) { g.log('迷宮の守護者の 反撃！'); await g.breakShields(o, 1); } } },
+    // ----- ノーブランド -----
+    389: { destroyed: async (g, p) => g.draw(p, 1) },
+    391: { blocker: true },
+    392: {
+        magic: async (g, p) => {
+            const n = Math.min(2, p.deck.length - 1);
+            if (n <= 0) return;
+            const top = p.deck.slice(-n);
+            const c = await g.ask(p, { title: 'ふるカワのメモ：手札に 加える カードを えらんでね', options: top.map((x) => ({ label: x.name, value: x, card: x, score: (x.power || 3000) + x.lv * 1000 })) });
+            p.deck.splice(p.deck.length - n, n);
+            p.hand.push(c);
+            p.deck.unshift(...top.filter((x) => x !== c));
+            g.log(`${p.name} は ${c.name} を 手札に くわえた`);
+        },
+        want: canDraw
+    },
+    393: { itemPower: () => 1000 },
+    394: { blocker: true },
+    395: { enter: async (g, p) => { if (p.shields.length <= 4 && p.deck.length > 2) { p.shields.push(g.takeTop(p)); g.log(`フキノトン：${p.name} の シールドが 1 枚 ふえた`); } } },
+    396: { magic: pumpOne(3000), want: (g, p) => p.field.some((u) => g.canAttack(u)) },
+    397: { itemPower: (g, u, ctx) => (ctx.attacking ? 2000 : 0) },
+    398: { attack: async (g, p) => killOne(2000, 'ハリドラ', false)(g, p) },
+    399: { magic: async (g, p) => { g.draw(p, 3); await g.discard(p, 1, 'ふるカワの大応援：捨てる カード'); }, want: canDraw },
+    400: { turnStart: async (g, p) => { if (p.hand.length <= 2) { g.log('石の川タウン：1 枚 引く'); g.draw(p, 1); } }, want: (g, p) => p.hand.length <= 4 },
+    401: { blocker: true, magicImmune: true },
+    402: { breaks: 2, magicImmune: true }
 };
 
 export const effectOf = (no) => EFFECTS[no] || {};

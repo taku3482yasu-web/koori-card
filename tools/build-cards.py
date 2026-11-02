@@ -17,8 +17,12 @@ def tight(t):
 def js(v):
     return json.dumps(v, ensure_ascii=False)
 
+# パック 第 1 弾 (docs/pack1.json。2026-11-03 ユーザー OK)。rarity: N U R VR SR HR OR
+PACK = json.load(open(os.path.join(ROOT, 'docs', 'pack1.json'), encoding='utf-8'))['cards']
+for x in PACK: x.setdefault('frm', 'パック 第1弾')
+
 cards = []
-for x in sorted(C, key=lambda x: x['no']):
+for x in sorted(C + PACK, key=lambda x: x['no']):
     text = x['text']
     dt = text.startswith('【DT】')
     if dt: text = text[len('【DT】'):]
@@ -27,6 +31,7 @@ for x in sorted(C, key=lambda x: x['no']):
     if x['power'] is not None: c['power'] = x['power']
     if dt: c['dt'] = True
     if x['no'] == 48: c['max'] = 1
+    if x.get('rarity'): c['rarity'] = x['rarity']; c['pack'] = 1
     cards.append(c)
 
 starters = {}
@@ -37,7 +42,7 @@ for t in ORDER:
 
 lines = [
     '// =====================================================================',
-    '// カードの データ (docs/cards.md v0.3。名前・種族・パワー・効果は 全部 案)',
+    '// カードの データ (docs/cards.md v0.4 と docs/pack1.md。名前・種族・パワー・効果は 全部 案)',
     '// tools/build-cards.py が docs/starter-decks.json から 作る (手で 直さない)',
     '// ---------------------------------------------------------------------',
     '//   kind: monster モンスター / magic 魔法 / field 場面 (魔法の 一部。場に 残る) / item アイテム',
@@ -45,6 +50,7 @@ lines = [
     '//   race: 種族 (モンスター) / 属性 (魔法・場面)。アイテムは なし',
     '//   lv: 左上の 丸い 数字 / power: パワー (モンスターだけ) / text: 効果 / dt: ドタバタトリガー付き',
     '//   max: デッキに 入れられる 枚数 (ふつうは 4)',
+    '//   rarity / pack: パックの カード (N U R VR SR HR OR。パック 第 1 弾 = docs/pack1.md)。スターターデッキの カードには ない',
     '// =====================================================================',
     '',
     "export const RACES = ['こおり', 'ほのお', 'みず', 'しぜん', 'かぜ', 'ふしぎ', 'ふつう'];",
@@ -60,7 +66,11 @@ lines = [
 for k, v in starters.items():
     lines.append(f"    {js(k)}: {{ name: {js(v['name'])}, buddy: {v['buddy']}, style: {js(v['style'])}, list: {js(v['list'])} }},")
 lines[-1] = lines[-1].rstrip(',')
-lines += ['};', '', 'export const MAX_COPIES = 4;', '', 'const LIST = [']
+lines += ['};', '', 'export const MAX_COPIES = 4;', '',
+    '// レア度 (低い じゅん) と シークレット (2026-11-03 ユーザー OK: OR = 別の 絵柄・HR = プラチナ・SR = ブラック)',
+    "export const RARITIES = ['N', 'U', 'R', 'VR', 'SR', 'HR', 'OR'];",
+    "export const SECRET = { OR: { id: 'alt', name: '別絵柄' }, HR: { id: 'platinum', name: 'プラチナ' }, SR: { id: 'black', name: 'ブラック' } };",
+    '', 'const LIST = [']
 for c in cards:
     lines.append('    ' + js(c) + ',')
 lines[-1] = lines[-1].rstrip(',')

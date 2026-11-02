@@ -54,7 +54,25 @@ export const CARD_ART = {
     194: 'big:tsunodaruma', 195: 'big:hakupai', 197: 'big:dumbbellkong', 198: 'big:proteingolem', 199: 'big:shurikenbo', 200: 'big:harrymimic',
     201: 'big:norahan', 202: 'big:maechokkin', 203: 'big:tatsumakitsune', 204: 'sprite:tsutankobu', 205: 'big:yoakefukurou', 206: 'big:mangetsuwolf',
     207: 'big:umibozun', 208: 'big:netkozou', 209: 'big:asahara', 210: 'big:okagappa', 211: 'big:hibikimakuri', 212: 'big:hibikimakuri',
-    213: 'big:muscletitan', 214: 'big:shibata', 215: 'big:muscletitan'
+    213: 'big:muscletitan', 214: 'big:shibata', 215: 'big:muscletitan',
+    // パック 第 1 弾 (2026-11-03)。魔法・場面・アイテムは かかわる キャラ・道具の 絵
+    301: 'big:asohei', 302: 'big:pekorisuking', 303: 'sprite:koori', 304: 'big:goldharry', 305: 'item:guard_scarf', 306: 'big:asoshougun',
+    307: 'big:maikumbo', 308: 'big:yasu', 309: 'big:tamu', 310: 'big:dake', 311: 'sprite:koori', 312: 'big:tsuraracomori',
+    313: 'sprite:koorimodoki', 314: 'sprite:furukawa', 315: 'big:yukimidaifuku', 316: 'item:omamori', 317: 'big:koorimodokishin', 318: 'scene:glacier',
+    319: 'new:koori_sword', 320: 'sprite:furukawa', 321: 'sprite:koori', 322: 'sprite:koori', 323: 'big:rousokubi', 324: 'big:chouchinbura',
+    325: 'sprite:onioni', 326: 'big:enjoubouzu', 327: 'item:haramaki', 328: 'big:daienjou', 329: 'scene:aso_pit', 330: 'sprite:onioni',
+    331: 'sprite:onioni', 332: 'sprite:onioni', 333: 'sprite:onioni', 334: 'big:gomibakon', 335: 'big:makibikonmk3', 336: 'big:spamking',
+    337: 'big:mokugyoro', 338: 'new:gold_kanabo', 339: 'big:sasaki', 340: 'big:asahara', 341: 'big:kotani', 342: 'big:asahara',
+    343: 'big:asahara', 344: 'big:asahara', 345: 'big:tsuribariuo', 346: 'big:tamatebakogani', 347: 'big:okagappa', 348: 'big:ryuuguudai',
+    349: 'big:hibikimakuri', 350: 'big:yamamou', 351: 'big:otohimedai', 352: 'big:hibikimakuri', 353: 'big:okagappa', 354: 'big:hibikimakuri',
+    355: 'big:okagappa', 356: 'big:youganworm', 357: 'big:harryknight', 358: 'item:onigiri', 359: 'big:iwaharry', 360: 'item:power_band',
+    361: 'big:shibata', 362: 'big:muscletitan', 363: 'big:ikekimu', 364: 'big:ikekimu', 365: 'big:ueno', 366: 'big:ueno',
+    367: 'big:joubachi', 368: 'big:kaminarigumo', 369: 'big:norahan', 370: 'big:tsubomajin', 371: 'item:guard_scarf', 372: 'big:norahan',
+    373: 'big:yopparaigarasu', 374: 'big:yahami', 375: 'big:maechokkin', 376: 'big:yahami', 377: 'big:yahami', 378: 'big:obakekabocha',
+    379: 'big:tsutankobuju', 380: 'big:mangetsuwolf', 381: 'big:bugmushi', 382: 'item:guard_scarf', 383: 'big:mazuda', 384: 'big:ishii',
+    385: 'big:naitoon', 386: 'big:naitoon', 387: 'big:ishii', 388: 'big:ishii', 389: 'big:nandomoslime', 390: 'big:harukirin',
+    391: 'big:onigirin', 392: 'sprite:furukawa', 393: 'item:omamori', 394: 'big:harigeneral', 395: 'big:fukinoton', 396: 'sprite:tomoishi',
+    397: 'item:power_band', 398: 'big:haridora', 399: 'sprite:furukawa', 400: 'sprite:tomoishi', 401: 'big:metalharry', 402: 'big:metalkingharry'
 };
 
 const cache = new Map();

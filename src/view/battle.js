@@ -10,7 +10,10 @@ import { cardHTML, pic, emblem } from './card.js';
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function startBattle(root, myDeck, { onQuit, buddy = null }) {
+// opts: { onQuit, buddy, list: 自分の デッキ (カード番号), onResult(won) → 結果に 出す ことば (ポイント) }
+export function startBattle(root, myDeck, opts) {
+    const { onQuit, buddy = null, list = null, onResult = null } = opts;
+    let resultNote = null;   // 1 回だけ 結果を 知らせる
     // CPU は ほかの スターターデッキから ランダム (2026-11-03 デッキ 8 つ)
     const others = Object.keys(DECKS).filter((id) => id !== myDeck);
     const cpuDeck = others[Math.floor(Math.random() * others.length)];
@@ -27,7 +30,7 @@ export function startBattle(root, myDeck, { onQuit, buddy = null }) {
 
     g = new Game({
         players: [
-            { name: 'あなた', deck: myDeck, buddy },
+            { name: 'あなた', deck: myDeck, buddy, list },
             { name: `CPU（${DECKS[cpuDeck].name}）`, deck: cpuDeck, cpu: true }
         ],
         ask: (pid, req) => new Promise((resolve) => { asking = { req, resolve }; render(); }),
@@ -193,8 +196,9 @@ ${g.winner !== null ? resultHTML() : ''}`;
 
     function resultHTML() {
         const won = g.winner === 0;
+        if (resultNote === null) resultNote = onResult?.(won) || '';
         return `<div class="sheet result"><div class="sheet-in">
-    <h2>${won ? 'かち！' : 'まけ…'}</h2><p>${esc(g.reason)}</p>
+    <h2>${won ? 'かち！' : 'まけ…'}</h2><p>${esc(g.reason)}</p>${resultNote ? `<p class="points">${esc(resultNote)}</p>` : ''}
     <div class="acts"><button class="act" data-again="1">もう いちど</button><button class="act sub quit">もどる</button></div>
 </div></div>`;
     }
@@ -283,7 +287,7 @@ ${g.winner !== null ? resultHTML() : ''}`;
             resolve(i < 0 ? null : req.options[i].value);
             return;
         }
-        if (b.dataset.again) { startBattle(root, myDeck, { onQuit }); return; }
+        if (b.dataset.again) { startBattle(root, myDeck, opts); return; }
         if (b.classList.contains('quit')) { onQuit(); return; }
         if (b.dataset.close && e.target === b) {   // いちばん 上の 画面だけ とじる
             if (detail) detail = null;

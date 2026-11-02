@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, starterDeck, DECK_SIZE } from '../src/logic/game.js';
 import { cpuTurn } from '../src/logic/cpu.js';
-import { cardByNo, DECKS } from '../src/data/cards.js';
+import { cardByNo, DECKS, CARDS } from '../src/data/cards.js';
 
 function seeded(seed) {
     return () => {
@@ -281,4 +281,46 @@ test('速攻: Lv1 の 速攻には 制限が あり、Lv2 からは 制限なし
     assert.equal(g.canAttack(u), false, '手札 3 枚では 速攻なし');
     a.hand.length = 2;
     assert.equal(g.canAttack(u), true, '手札 2 枚なら 速攻');
+});
+
+// パック 第1弾の カードだけの デッキ (チームの パックの カード ×2 + ノーブランドの パックの カード ×2 = 50 枚) で 総当たり
+test('パックの カードの デッキで 8 チーム 総当たり (各 3 回) して、ぜんぶ 決着する (2026-11-03)', async () => {
+    const listOf = (team) => CARDS.filter((c) => c.pack && (c.team === team || c.team === 'nobrand')).flatMap((c) => [c.no, c.no]);
+    const teams = Object.keys(DECKS);
+    let seed = 500;
+    for (const a of teams) for (const b of teams) {
+        if (a >= b) continue;
+        for (let k = 0; k < 3; k++) {
+            assert.equal(listOf(a).length, 50);
+            const g = new Game({ players: [a, b].map((d, i) => ({ name: `CPU${i}`, deck: d, cpu: true, list: listOf(d) })), rand: seeded(++seed) });
+            await g.start();
+            for (let t = 0; t < 200 && g.winner === null; t++) {
+                await cpuTurn(g, g.players[g.active]);
+                assert.equal(countCards(g.players[0]) + countCards(g.players[1]), 2 * (DECK_SIZE + 1), `${a} ${b} seed ${seed} turn ${g.turn}`);
+                for (const p of g.players) assert.ok(p.field.length <= p.lv + 2);
+            }
+            assert.notEqual(g.winner, null, `${a} vs ${b}`);
+        }
+    }
+});
+
+test('パック: メタルハリーは 相手の 魔法で 選ばれない・怪盗団は 相手の モンスターを うばう・イシイー王は ブロックで 攻撃側を 墓地へ', async () => {
+    const g = new Game({ players: [{ name: 'A', deck: 'bartas' }, { name: 'B', deck: 'kemono' }], rand: seeded(3), first: 0, ask: async (pid, req) => req.options[0]?.value ?? null });
+    await g.start();
+    const [a, b] = g.players;
+    a.lv = 3;
+    b.lv = 3;
+    const metal = await g.enter(b, cardByNo(401));
+    assert.equal(await g.pickEnemy(a, 'test', () => true, { magic: true }), null);
+    assert.equal(await g.pickEnemy(a, 'test', () => true, { magic: false }), metal);
+    await g.enter(a, cardByNo(377));
+    assert.ok(a.field.includes(metal));
+    assert.equal(metal.owner, 0);
+    assert.equal(g.canAttack(metal), false);
+    const king = await g.enter(b, cardByNo(387));
+    const atk = await g.enter(a, cardByNo(390));   // 効果なしの モンスター
+    atk.enteredTurn = -1;
+    await g.attack(atk, 'shield');
+    assert.ok(!a.field.includes(atk));
+    assert.ok(b.field.includes(king));
 });

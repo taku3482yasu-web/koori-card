@@ -1,5 +1,5 @@
 // =====================================================================
-// カードの データ (docs/cards.md v0.3。名前・種族・パワー・効果は 全部 案)
+// カードの データ (docs/cards.md v0.4 と docs/pack1.md。名前・種族・パワー・効果は 全部 案)
 // tools/build-cards.py が docs/starter-decks.json から 作る (手で 直さない)
 // ---------------------------------------------------------------------
 //   kind: monster モンスター / magic 魔法 / field 場面 (魔法の 一部。場に 残る) / item アイテム
@@ -7,6 +7,7 @@
 //   race: 種族 (モンスター) / 属性 (魔法・場面)。アイテムは なし
 //   lv: 左上の 丸い 数字 / power: パワー (モンスターだけ) / text: 効果 / dt: ドタバタトリガー付き
 //   max: デッキに 入れられる 枚数 (ふつうは 4)
+//   rarity / pack: パックの カード (N U R VR SR HR OR。パック 第 1 弾 = docs/pack1.md)。スターターデッキの カードには ない
 // =====================================================================
 
 export const RACES = ['こおり', 'ほのお', 'みず', 'しぜん', 'かぜ', 'ふしぎ', 'ふつう'];
@@ -29,6 +30,10 @@ export const DECKS = {
 };
 
 export const MAX_COPIES = 4;
+
+// レア度 (低い じゅん) と シークレット (2026-11-03 ユーザー OK: OR = 別の 絵柄・HR = プラチナ・SR = ブラック)
+export const RARITIES = ['N', 'U', 'R', 'VR', 'SR', 'HR', 'OR'];
+export const SECRET = { OR: { id: 'alt', name: '別絵柄' }, HR: { id: 'platinum', name: 'プラチナ' }, SR: { id: 'black', name: 'ブラック' } };
 
 const LIST = [
     {"no": 1, "kind": "monster", "name": "こおりくん（氷隊）", "team": "koori", "lv": 2, "text": "【出たとき】相手のパワー3000以下のモンスター1体を墓地へ（コオリソード）", "from": "シリーズ全部", "race": "こおり", "power": 6000},
@@ -231,7 +236,109 @@ const LIST = [
     {"no": 212, "kind": "item", "name": "ひびきのマイク", "team": "5dx", "lv": 1, "text": "付けたモンスターはパワー+1000。「おかがっぱ」か「ひびきまくり」なら、自分が魔法を使ったターンはさらに+2000", "from": "アソ"},
     {"no": 213, "kind": "field", "name": "マッスルジム", "team": "muscle", "lv": 1, "text": "自分の筋肉が付いたモンスターはパワー+1000", "from": "案", "race": "ふつう"},
     {"no": 214, "kind": "magic", "name": "パンプアップ", "team": "muscle", "lv": 1, "text": "自分のモンスターすべてこのターンパワー+1000。筋肉が付いていれば+2000", "from": "案", "race": "ふつう"},
-    {"no": 215, "kind": "item", "name": "マッスルスーツ", "team": "muscle", "lv": 2, "text": "付けたモンスターに筋肉+2（このアイテムがなくなっても筋肉は残る）", "from": "案"}
+    {"no": 215, "kind": "item", "name": "マッスルスーツ", "team": "muscle", "lv": 2, "text": "付けたモンスターに筋肉+2（このアイテムがなくなっても筋肉は残る）", "from": "案"},
+    {"no": 301, "kind": "monster", "name": "アソヘイ", "team": "bariki", "lv": 1, "text": "【出たとき】自分の場にほかのばりきつよめのモンスターがいれば山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 302, "kind": "monster", "name": "ペコリスキング", "team": "bariki", "lv": 1, "text": "ブロッカー。自分の場にばりきつよめのモンスターがいればパワー+1000", "from": "パック 第1弾", "race": "かぜ", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 303, "kind": "magic", "name": "ばりきコール", "team": "bariki", "lv": 1, "text": "自分のモンスター1体はこのターンパワー+2000。ばりきつよめのモンスターなら+3000", "from": "パック 第1弾", "race": "ふつう", "rarity": "N", "pack": 1},
+    {"no": 304, "kind": "monster", "name": "ゴールドハリー", "team": "bariki", "lv": 2, "text": "【出たとき】山札からばりきつよめのモンスターを1枚さがして手札に加える", "from": "パック 第1弾", "race": "ふつう", "power": 5000, "rarity": "U", "pack": 1},
+    {"no": 305, "kind": "item", "name": "ばりきつよめのタオル", "team": "bariki", "lv": 1, "text": "付けたモンスターはパワー+2000。ばりきつよめのモンスターなら、やられたとき山札から1枚引く", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 306, "kind": "monster", "name": "アソショウグン", "team": "bariki", "lv": 2, "text": "自分のほかのばりきつよめのモンスターはパワー+1000", "from": "パック 第1弾", "race": "ふつう", "power": 6000, "rarity": "R", "pack": 1},
+    {"no": 307, "kind": "field", "name": "摩天楼のてっぺん", "team": "bariki", "lv": 2, "text": "自分の場にばりきつよめのモンスターが3体以上いれば、自分のモンスターは攻撃するときパワー+2000", "from": "パック 第1弾", "race": "ふつう", "rarity": "R", "pack": 1},
+    {"no": 308, "kind": "monster", "name": "やすさん・ばりきMAX", "team": "bariki", "lv": 2, "text": "ブロッカー。【やられたとき】山札の上の1枚を自分のシールドに加え、山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "power": 5000, "rarity": "VR", "pack": 1},
+    {"no": 309, "kind": "monster", "name": "たむさん・ばりきMAX", "team": "bariki", "lv": 2, "text": "【出たとき】相手のモンスター2体は、次の相手のターンに攻撃できない（たむキック連打）", "from": "パック 第1弾", "race": "ふつう", "power": 6000, "rarity": "SR", "pack": 1},
+    {"no": 310, "kind": "monster", "name": "だけさん・ばりきMAX", "team": "bariki", "lv": 3, "text": "ブロッカー。相手のターンのあいだパワー+3000。【カウンター】ブロックしてバトルに勝ったとき、相手のシールドを1枚割る", "from": "パック 第1弾", "race": "ふつう", "power": 8000, "rarity": "HR", "pack": 1},
+    {"no": 311, "kind": "monster", "name": "チームばりきつよめ・全員集合", "team": "bariki", "lv": 3, "text": "2枚割り。【出たとき】自分の墓地からばりきつよめのモンスターを2体まで手札に戻す。自分の場のほかのばりきつよめのモンスター1体につきパワー+1000", "from": "パック 第1弾", "race": "こおり", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 312, "kind": "monster", "name": "ツララコウモリ", "team": "koori", "lv": 1, "text": "【出たとき】自分の場に「こおりくん」がいれば、相手のモンスター1体をタップする", "from": "パック 第1弾", "race": "こおり", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 313, "kind": "monster", "name": "コオリモドキ", "team": "koori", "lv": 1, "text": "自分の場に「こおりくん」がいればパワー+1000", "from": "パック 第1弾", "race": "こおり", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 314, "kind": "magic", "name": "ひんやりサポート", "team": "koori", "lv": 1, "text": "自分の「こおりくん」1体はこのターンパワー+3000。いなければ山札から1枚引く", "from": "パック 第1弾", "race": "こおり", "dt": true, "rarity": "N", "pack": 1},
+    {"no": 315, "kind": "monster", "name": "ユキミダイフク", "team": "koori", "lv": 2, "text": "ブロッカー。【やられたとき】山札から「こおりくん」を1枚さがして手札に加える", "from": "パック 第1弾", "race": "こおり", "power": 5000, "rarity": "U", "pack": 1},
+    {"no": 316, "kind": "item", "name": "氷隊のバッジ", "team": "koori", "lv": 1, "text": "付けたモンスターはパワー+1000。「こおりくん」に付けたら、やられるとき代わりにこのアイテムを墓地へ", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 317, "kind": "monster", "name": "コオリモドキ・真", "team": "koori", "lv": 2, "text": "【出たとき】自分の「こおりくん」1体をアンタップし、このターンパワー+2000", "from": "パック 第1弾", "race": "こおり", "power": 6000, "rarity": "R", "pack": 1},
+    {"no": 318, "kind": "field", "name": "氷隊の基地", "team": "koori", "lv": 1, "text": "自分の「こおりくん」はパワー+2000", "from": "パック 第1弾", "race": "こおり", "rarity": "R", "pack": 1},
+    {"no": 319, "kind": "magic", "name": "コオリソード・極", "team": "koori", "lv": 2, "text": "相手のパワー5000以下のモンスター1体を墓地へ。自分の場に「こおりくん」がいればパワー7000以下", "from": "パック 第1弾", "race": "こおり", "rarity": "VR", "pack": 1},
+    {"no": 320, "kind": "monster", "name": "ふるカワ（氷隊）", "team": "koori", "lv": 2, "text": "ブロッカー。【出たとき】山札から2枚引く。自分の「こおりくん」はパワー+1000", "from": "パック 第1弾", "race": "ふつう", "power": 4000, "rarity": "SR", "pack": 1},
+    {"no": 321, "kind": "monster", "name": "こおりくん・絶対殺すソード", "team": "koori", "lv": 3, "text": "【進化：こおりくん】2枚割り。【出たとき】相手のモンスター1体を墓地へ", "from": "パック 第1弾", "race": "こおり", "power": 9000, "rarity": "HR", "pack": 1},
+    {"no": 322, "kind": "monster", "name": "こおりくん・レクイエム", "team": "koori", "lv": 3, "text": "【進化：こおりくん】2枚割り。攻撃するとき、相手のパワー5000以下のモンスターをすべて墓地へ（絶対殺すソード・レクイエム）", "from": "パック 第1弾", "race": "こおり", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 323, "kind": "monster", "name": "ロウソクビ", "team": "oni", "lv": 1, "text": "【やられたとき】山札から1枚引く", "from": "パック 第1弾", "race": "ほのお", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 324, "kind": "monster", "name": "チョウチンブラ", "team": "oni", "lv": 1, "text": "自分の場に「おにおに」と名の付くモンスターがいればブロッカー", "from": "パック 第1弾", "race": "ほのお", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 325, "kind": "magic", "name": "鬼の号令", "team": "oni", "lv": 1, "text": "山札から「おにおに」と名の付くカードを1枚さがして手札に加える", "from": "パック 第1弾", "race": "ほのお", "rarity": "N", "pack": 1},
+    {"no": 326, "kind": "monster", "name": "エンジョウボウズ", "team": "oni", "lv": 2, "text": "攻撃するとき、自分の場に「おにおに」と名の付くモンスターがいれば、相手のパワー2000以下のモンスター1体を墓地へ", "from": "パック 第1弾", "race": "ほのお", "power": 5000, "rarity": "U", "pack": 1},
+    {"no": 327, "kind": "item", "name": "鬼鬼団のはっぴ", "team": "oni", "lv": 1, "text": "付けたモンスターはパワー+1000。「おにおに」と名の付くモンスターなら+2000で、やられるとき代わりにこのアイテムを墓地へ", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 328, "kind": "monster", "name": "ダイエンジョウ", "team": "oni", "lv": 2, "text": "自分の「おにおに」と名の付くモンスターはパワー+1000", "from": "パック 第1弾", "race": "ほのお", "power": 6000, "rarity": "R", "pack": 1},
+    {"no": 329, "kind": "field", "name": "鬼鬼団のアジト", "team": "oni", "lv": 1, "text": "自分の「おにおに」と名の付くモンスターが攻撃するとき、相手は手札を1枚捨てる", "from": "パック 第1弾", "race": "ほのお", "rarity": "R", "pack": 1},
+    {"no": 330, "kind": "magic", "name": "鬼神召喚", "team": "oni", "lv": 2, "text": "手札か山札の「おにおに・鬼神」を、自分の場の「おにおに」に【進化】させる。山札から1枚引く", "from": "パック 第1弾", "race": "ほのお", "rarity": "VR", "pack": 1},
+    {"no": 331, "kind": "monster", "name": "おにおに・紅蓮", "team": "oni", "lv": 2, "text": "【進化：おにおに】速攻。【出たとき】相手のパワー3000以下のモンスター1体を墓地へ", "from": "パック 第1弾", "race": "ほのお", "power": 7000, "rarity": "SR", "pack": 1},
+    {"no": 332, "kind": "monster", "name": "おにおに・鬼神 金棒くだき", "team": "oni", "lv": 3, "text": "【進化：おにおに】2枚割り。攻撃するとき、相手のアイテムをすべて墓地へ", "from": "パック 第1弾", "race": "ほのお", "power": 10000, "rarity": "HR", "pack": 1},
+    {"no": 333, "kind": "monster", "name": "おにおに・鬼の王 覚醒", "team": "oni", "lv": 3, "text": "【進化：おにおに・鬼神】3枚割り。【出たとき】相手のパワー6000以下のモンスターをすべて墓地へ", "from": "パック 第1弾", "race": "ほのお", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 334, "kind": "monster", "name": "ゴミバコン", "team": "ask3", "lv": 1, "text": "【出たとき】手札を1枚捨てて、山札から1枚引いてもよい", "from": "パック 第1弾", "race": "ふつう", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 335, "kind": "monster", "name": "マキビコンMk-3", "team": "ask3", "lv": 1, "text": "ブロッカー", "from": "パック 第1弾", "race": "ふつう", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 336, "kind": "magic", "name": "スパム送信", "team": "ask3", "lv": 1, "text": "相手のモンスター1体をタップする", "from": "パック 第1弾", "race": "ふしぎ", "dt": true, "rarity": "N", "pack": 1},
+    {"no": 337, "kind": "monster", "name": "モクギョロ", "team": "ask3", "lv": 1, "text": "【出たとき】相手のシールドが自分より多ければ山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "power": 2000, "rarity": "U", "pack": 1},
+    {"no": 338, "kind": "item", "name": "CS城の剣", "team": "ask3", "lv": 1, "text": "付けたモンスターはパワー+2000。「KING.ASAHARA」なら+3000で、シールドを割ったとき相手は手札を1枚捨てる", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 339, "kind": "monster", "name": "Mr.SASAKI・残業モード", "team": "ask3", "lv": 2, "text": "【出たとき】相手の手札を見て1枚選び捨てさせ、山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "power": 6000, "rarity": "R", "pack": 1},
+    {"no": 340, "kind": "field", "name": "CS城の玉座", "team": "ask3", "lv": 2, "text": "自分のシールドが2枚以下なら、自分のモンスターはパワー+3000", "from": "パック 第1弾", "race": "ほのお", "rarity": "R", "pack": 1},
+    {"no": 341, "kind": "monster", "name": "Mr.KOTANI・完全計算", "team": "ask3", "lv": 2, "text": "速攻。【出たとき】相手のモンスターをすべてタップする", "from": "パック 第1弾", "race": "かぜ", "power": 5000, "rarity": "VR", "pack": 1},
+    {"no": 342, "kind": "magic", "name": "DOPAPANCHI・改", "team": "ask3", "lv": 2, "text": "相手のシールドを2枚割る。自分のシールドが2枚以下なら3枚", "from": "パック 第1弾", "race": "ほのお", "rarity": "SR", "pack": 1},
+    {"no": 343, "kind": "monster", "name": "KING.ASAHARA・CS城の主", "team": "ask3", "lv": 3, "text": "3枚割り。自分のシールドが3枚以下ならブロックされない", "from": "パック 第1弾", "race": "ほのお", "power": 10000, "rarity": "HR", "pack": 1},
+    {"no": 344, "kind": "magic", "name": "ASAPANCHI・ゼロ", "team": "ask3", "lv": 3, "text": "自分のシールドが1枚以下なら、相手のシールドをすべて割る。そうでなければ相手のシールドを2枚割る（真の一発逆転）", "from": "パック 第1弾", "race": "ほのお", "rarity": "OR", "pack": 1},
+    {"no": 345, "kind": "monster", "name": "ツリバリウオ", "team": "5dx", "lv": 1, "text": "【出たとき】このターン自分が魔法を使っていれば山札から1枚引く", "from": "パック 第1弾", "race": "みず", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 346, "kind": "monster", "name": "ソウメンナガレ", "team": "5dx", "lv": 1, "text": "ブロッカー", "from": "パック 第1弾", "race": "みず", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 347, "kind": "magic", "name": "カッパ巻き", "team": "5dx", "lv": 1, "text": "山札から1枚引く。自分の場に「おかがっぱ」がいればもう1枚", "from": "パック 第1弾", "race": "みず", "dt": true, "rarity": "N", "pack": 1},
+    {"no": 348, "kind": "monster", "name": "リュウグウダイ", "team": "5dx", "lv": 2, "text": "【出たとき】自分の墓地の魔法1枚を手札に戻す", "from": "パック 第1弾", "race": "みず", "power": 5000, "rarity": "U", "pack": 1},
+    {"no": 349, "kind": "item", "name": "5DXのギター", "team": "5dx", "lv": 1, "text": "付けたモンスターはパワー+1000。自分が魔法を使ったターンのあいださらに+2000", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 350, "kind": "monster", "name": "やまもぅ・牛魔王", "team": "5dx", "lv": 2, "text": "ブロッカー。自分の場に「おかがっぱ」か「ひびきまくり」がいれば2枚割り", "from": "パック 第1弾", "race": "ふつう", "power": 7000, "rarity": "R", "pack": 1},
+    {"no": 351, "kind": "field", "name": "5DXのライブハウス", "team": "5dx", "lv": 1, "text": "自分が魔法を使ったとき、山札から1枚引く（1ターンに1回）", "from": "パック 第1弾", "race": "ふしぎ", "rarity": "R", "pack": 1},
+    {"no": 352, "kind": "magic", "name": "響けまくり！", "team": "5dx", "lv": 2, "text": "相手のモンスターすべてのパワーをこのターン-2000。自分の場に「ひびきまくり」がいれば-3000", "from": "パック 第1弾", "race": "ふしぎ", "rarity": "VR", "pack": 1},
+    {"no": 353, "kind": "monster", "name": "おかがっぱ・おかピポMAX", "team": "5dx", "lv": 3, "text": "攻撃するときパワー+2000。自分が魔法を使ったとき、相手のパワー3000以下のモンスター1体を墓地へ（1ターンに1回）", "from": "パック 第1弾", "race": "みず", "power": 8000, "rarity": "SR", "pack": 1},
+    {"no": 354, "kind": "monster", "name": "ひびきまくり・フルボリューム", "team": "5dx", "lv": 3, "text": "【出たとき】自分の墓地の魔法を2枚まで手札に戻す。自分の魔法を使うのに必要なLvを1下げる", "from": "パック 第1弾", "race": "ふしぎ", "power": 8000, "rarity": "HR", "pack": 1},
+    {"no": 355, "kind": "monster", "name": "チーム5DX・3人そろって", "team": "5dx", "lv": 3, "text": "【出たとき】自分の墓地の魔法1枚をLvに関係なく使う。自分が魔法を使うたび、このターンパワー+2000", "from": "パック 第1弾", "race": "ふしぎ", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 356, "kind": "monster", "name": "ヨウガンワーム", "team": "muscle", "lv": 1, "text": "攻撃で相手のモンスターを倒したとき、このモンスターに筋肉+1", "from": "パック 第1弾", "race": "ほのお", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 357, "kind": "monster", "name": "ハリーナイト", "team": "muscle", "lv": 1, "text": "筋肉が付いていればブロッカー", "from": "パック 第1弾", "race": "ふつう", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 358, "kind": "magic", "name": "ささみ", "team": "muscle", "lv": 1, "text": "自分のモンスター1体に筋肉+1", "from": "パック 第1弾", "race": "ふつう", "dt": true, "rarity": "N", "pack": 1},
+    {"no": 359, "kind": "monster", "name": "イワハリー", "team": "muscle", "lv": 2, "text": "ブロッカー。【出たとき】自分のモンスター1体に筋肉+1", "from": "パック 第1弾", "race": "しぜん", "power": 5000, "rarity": "U", "pack": 1},
+    {"no": 360, "kind": "item", "name": "プロテインバー", "team": "muscle", "lv": 1, "text": "付けたモンスターに筋肉+1。付けたモンスターがやられたとき、山札から1枚引く", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 361, "kind": "monster", "name": "シバター・バルクアップ", "team": "muscle", "lv": 2, "text": "攻撃で相手のモンスターを倒したとき、相手のシールドを1枚割り、このモンスターに筋肉+1", "from": "パック 第1弾", "race": "ふつう", "power": 6000, "rarity": "R", "pack": 1},
+    {"no": 362, "kind": "field", "name": "マッスルビーチ", "team": "muscle", "lv": 2, "text": "自分の筋肉が付いたモンスターは、相手のターンのあいだパワー+2000", "from": "パック 第1弾", "race": "ふつう", "rarity": "R", "pack": 1},
+    {"no": 363, "kind": "magic", "name": "合体ポーズ", "team": "muscle", "lv": 2, "text": "自分のモンスター2体に筋肉+1。山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "rarity": "VR", "pack": 1},
+    {"no": 364, "kind": "monster", "name": "イケキム・ハイテンション", "team": "muscle", "lv": 2, "text": "速攻。【出たとき】自分のモンスターすべてに筋肉+1", "from": "パック 第1弾", "race": "かぜ", "power": 6000, "rarity": "SR", "pack": 1},
+    {"no": 365, "kind": "monster", "name": "マッスルウエノーブル・神の肉体", "team": "muscle", "lv": 3, "text": "自分のモンスターは、筋肉1こにつきさらにパワー+1000（筋肉の力が2倍）", "from": "パック 第1弾", "race": "ふつう", "power": 9000, "rarity": "HR", "pack": 1},
+    {"no": 366, "kind": "monster", "name": "お願いマッスル・最強の筋肉", "team": "muscle", "lv": 3, "text": "2枚割り。【出たとき】自分のモンスターすべてに筋肉+2", "from": "パック 第1弾", "race": "ふつう", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 367, "kind": "monster", "name": "ジョオウバチ", "team": "bartas", "lv": 1, "text": "相手の手札が自分より多ければパワー+1000", "from": "パック 第1弾", "race": "かぜ", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 368, "kind": "monster", "name": "カミナリグモ", "team": "bartas", "lv": 1, "text": "【出たとき】相手のモンスター1体をタップする", "from": "パック 第1弾", "race": "かぜ", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 369, "kind": "magic", "name": "すりかえ", "team": "bartas", "lv": 1, "text": "相手の手札からランダムに1枚捨てさせる", "from": "パック 第1弾", "race": "ふしぎ", "dt": true, "rarity": "N", "pack": 1},
+    {"no": 370, "kind": "monster", "name": "ツボマジン", "team": "bartas", "lv": 2, "text": "【出たとき】相手の手札を見て1枚選び、捨てさせる", "from": "パック 第1弾", "race": "ふしぎ", "power": 4000, "rarity": "U", "pack": 1},
+    {"no": 371, "kind": "item", "name": "怪盗のマント", "team": "bartas", "lv": 1, "text": "付けたモンスターが攻撃したとき、相手の手札からランダムに1枚捨てさせる", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 372, "kind": "monster", "name": "ノラハン・ねこまっしぐら", "team": "bartas", "lv": 2, "text": "【出たとき】相手の手札からランダムに1枚自分の手札に加え、もう1枚捨てさせる", "from": "パック 第1弾", "race": "みず", "power": 5000, "rarity": "R", "pack": 1},
+    {"no": 373, "kind": "field", "name": "怪盗の夜", "team": "bartas", "lv": 1, "text": "相手の手札が3枚以下なら、自分のモンスターはパワー+2000", "from": "パック 第1弾", "race": "ふしぎ", "rarity": "R", "pack": 1},
+    {"no": 374, "kind": "magic", "name": "ぜんぶいただき", "team": "bartas", "lv": 2, "text": "相手のアイテムをすべて墓地へ。相手は手札を1枚捨てる", "from": "パック 第1弾", "race": "ふしぎ", "rarity": "VR", "pack": 1},
+    {"no": 375, "kind": "monster", "name": "マエチョッキン・ハサミの舞", "team": "bartas", "lv": 2, "text": "速攻。攻撃するとき、相手のモンスター2体をタップする", "from": "パック 第1弾", "race": "かぜ", "power": 6000, "rarity": "SR", "pack": 1},
+    {"no": 376, "kind": "monster", "name": "ヤーハミー・夜の女王", "team": "bartas", "lv": 3, "text": "【出たとき】相手の手札を見て2枚選び、捨てさせる", "from": "パック 第1弾", "race": "ふしぎ", "power": 9000, "rarity": "HR", "pack": 1},
+    {"no": 377, "kind": "monster", "name": "チームバータス・怪盗団", "team": "bartas", "lv": 3, "text": "【出たとき】相手の場のモンスター1体を、自分の場にうばう（アイテムは墓地へ。このターンは攻撃できない）", "from": "パック 第1弾", "race": "ふしぎ", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 378, "kind": "monster", "name": "オバケカボチャ", "team": "kemono", "lv": 1, "text": "ブロッカー。ブロックしたとき、そのバトルのあいだパワー+2000", "from": "パック 第1弾", "race": "しぜん", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 379, "kind": "monster", "name": "ツタンコブジュ", "team": "kemono", "lv": 1, "text": "ブロッカー", "from": "パック 第1弾", "race": "しぜん", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 380, "kind": "magic", "name": "けものの遠吠え", "team": "kemono", "lv": 1, "text": "自分のブロッカー1体をアンタップする。そのモンスターは次の相手のターンのあいだパワー+2000", "from": "パック 第1弾", "race": "しぜん", "dt": true, "rarity": "N", "pack": 1},
+    {"no": 381, "kind": "monster", "name": "バグムシ", "team": "kemono", "lv": 2, "text": "【カウンター】攻撃されたとき、攻撃してきたモンスターのパワーをそのバトルのあいだ-2000", "from": "パック 第1弾", "race": "しぜん", "power": 4000, "rarity": "U", "pack": 1},
+    {"no": 382, "kind": "item", "name": "獣道のよろい", "team": "kemono", "lv": 1, "text": "付けたモンスターはブロッカー。相手のターンのあいだパワー+2000", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 383, "kind": "monster", "name": "マズダ・鉄壁", "team": "kemono", "lv": 2, "text": "ブロッカー。ブロックしてバトルに勝ったとき、山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "power": 7000, "rarity": "R", "pack": 1},
+    {"no": 384, "kind": "field", "name": "獣道の迷宮", "team": "kemono", "lv": 2, "text": "相手のモンスターは、攻撃するときパワー-1000", "from": "パック 第1弾", "race": "しぜん", "rarity": "R", "pack": 1},
+    {"no": 385, "kind": "magic", "name": "返り討ち", "team": "kemono", "lv": 2, "text": "相手のパワー5000以下のモンスター1体を墓地へ。自分の場にブロッカーがいればパワー7000以下", "from": "パック 第1弾", "race": "しぜん", "dt": true, "rarity": "VR", "pack": 1},
+    {"no": 386, "kind": "monster", "name": "NAITOON・夜明けの遠吠え", "team": "kemono", "lv": 2, "text": "【カウンター】自分のモンスターがブロックしたとき、攻撃してきたパワー5000以下のモンスターを墓地へ", "from": "パック 第1弾", "race": "かぜ", "power": 5000, "rarity": "SR", "pack": 1},
+    {"no": 387, "kind": "monster", "name": "イシイー・獣道の王", "team": "kemono", "lv": 3, "text": "ブロッカー。【カウンター】ブロックしたとき、攻撃してきたモンスターを墓地へ（バトルはしない）", "from": "パック 第1弾", "race": "しぜん", "power": 9000, "rarity": "HR", "pack": 1},
+    {"no": 388, "kind": "monster", "name": "チーム・ケモノミチ 迷宮の守護者", "team": "kemono", "lv": 3, "text": "ブロッカー。自分のほかのモンスターもすべてブロッカー。【カウンター】自分のモンスターがブロックしてバトルに勝つたび、相手のシールドを1枚割る", "from": "パック 第1弾", "race": "しぜん", "power": 10000, "rarity": "OR", "pack": 1},
+    {"no": 389, "kind": "monster", "name": "ナンドモスライム", "team": "nobrand", "lv": 1, "text": "【やられたとき】山札から1枚引く", "from": "パック 第1弾", "race": "みず", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 390, "kind": "monster", "name": "ミズキリン", "team": "nobrand", "lv": 1, "text": "（効果なし）", "from": "パック 第1弾", "race": "かぜ", "power": 3000, "rarity": "N", "pack": 1},
+    {"no": 391, "kind": "monster", "name": "オニギリン", "team": "nobrand", "lv": 1, "text": "ブロッカー", "from": "パック 第1弾", "race": "しぜん", "power": 2000, "rarity": "N", "pack": 1},
+    {"no": 392, "kind": "magic", "name": "ふるカワのメモ", "team": "nobrand", "lv": 1, "text": "山札の上を2枚見て、1枚を手札に加え、もう1枚を山札の下へ", "from": "パック 第1弾", "race": "ふつう", "rarity": "N", "pack": 1},
+    {"no": 393, "kind": "item", "name": "てづくりお守り", "team": "nobrand", "lv": 1, "text": "付けたモンスターはパワー+1000", "from": "パック 第1弾", "rarity": "N", "pack": 1},
+    {"no": 394, "kind": "monster", "name": "ハリジェネラル", "team": "nobrand", "lv": 2, "text": "ブロッカー", "from": "パック 第1弾", "race": "ふつう", "power": 5000, "rarity": "U", "pack": 1},
+    {"no": 395, "kind": "monster", "name": "フキノトン", "team": "nobrand", "lv": 1, "text": "【出たとき】自分のシールドが4枚以下なら、山札の上の1枚をシールドに加える", "from": "パック 第1弾", "race": "しぜん", "power": 2000, "rarity": "U", "pack": 1},
+    {"no": 396, "kind": "magic", "name": "ともいしの声援", "team": "nobrand", "lv": 1, "text": "自分のモンスター1体はこのターンパワー+3000", "from": "パック 第1弾", "race": "ふつう", "dt": true, "rarity": "U", "pack": 1},
+    {"no": 397, "kind": "item", "name": "銀のハリ", "team": "nobrand", "lv": 1, "text": "付けたモンスターは、攻撃するときパワー+2000", "from": "パック 第1弾", "rarity": "U", "pack": 1},
+    {"no": 398, "kind": "monster", "name": "ハリドラ", "team": "nobrand", "lv": 2, "text": "攻撃するとき、相手のパワー2000以下のモンスター1体を墓地へ", "from": "パック 第1弾", "race": "ほのお", "power": 6000, "rarity": "R", "pack": 1},
+    {"no": 399, "kind": "magic", "name": "ふるカワの大応援", "team": "nobrand", "lv": 2, "text": "山札から3枚引き、手札を1枚捨てる", "from": "パック 第1弾", "race": "ふつう", "rarity": "R", "pack": 1},
+    {"no": 400, "kind": "field", "name": "石の川タウン", "team": "nobrand", "lv": 1, "text": "自分のターンのはじめに、手札が2枚以下なら山札から1枚引く", "from": "パック 第1弾", "race": "ふつう", "rarity": "R", "pack": 1},
+    {"no": 401, "kind": "monster", "name": "メタルハリー", "team": "nobrand", "lv": 2, "text": "ブロッカー。相手の魔法で選ばれない", "from": "パック 第1弾", "race": "ふつう", "power": 4000, "rarity": "VR", "pack": 1},
+    {"no": 402, "kind": "monster", "name": "メタルキングハリー", "team": "nobrand", "lv": 3, "text": "2枚割り。相手の魔法で選ばれない", "from": "パック 第1弾", "race": "ふつう", "power": 9000, "rarity": "SR", "pack": 1}
 ];
 
 export const CARDS = LIST.map((c) => ({ max: MAX_COPIES, dt: false, ...c }));

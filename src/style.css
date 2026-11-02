@@ -230,3 +230,52 @@ body {
 /* バディを えらぶ (2026-11-03) */
 .buddypick { padding: 0; border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: inherit; }
 .buddypick:hover .card { outline: 3px solid #ffd84a; }
+
+/* ---------- パック・レア度・シークレット (2026-11-03) ---------- */
+.card .rarity { margin-right: 4px; padding: 0 4px; border-radius: 3px; background: #3a4560; color: #fff; font-weight: 900; }
+.card .rarity.r-U { background: #3a7a5a; }
+.card .rarity.r-R { background: #2d6cdf; }
+.card .rarity.r-VR { background: #8a4ad8; }
+.card .rarity.r-SR { background: #d8a42a; color: #2a1a00; }
+.card .rarity.r-HR { background: linear-gradient(90deg, #ff6a8a, #ffd84a, #6affc8); color: #2a1a00; }
+.card .rarity.r-OR { background: linear-gradient(90deg, #ff5a5a, #ffb84a, #5ac8ff, #c86aff); color: #111; }
+/* プラチナ (HR): 白銀に 光る */
+.card.s-platinum { --base: #d8dde8; --edge: #ffffff; color: #1a2233; background: linear-gradient(135deg, #f4f6fb, #b8c0d0 45%, #f8faff 55%, #a8b0c4); box-shadow: 0 0 14px rgba(255, 255, 255, 0.6); }
+.card.s-platinum .name { background: rgba(255, 255, 255, 0.6); color: #1a2233; }
+.card.s-platinum .power, .card.s-platinum footer { color: #3a4560; }
+/* ブラック (SR): 黒に 金の ふち */
+.card.s-black { --base: #08080c; --edge: #e8c45a; background: linear-gradient(160deg, #1a1a22, #000 60%, #2a2410); box-shadow: 0 0 12px rgba(232, 196, 90, 0.5); }
+.card.s-black .text { background: #1e1e26; color: #f0e6c8; }
+/* 別絵柄 (OR): にじ色の 背景で 絵が 左右 反対・大きく */
+.card.s-alt { box-shadow: 0 0 16px rgba(255, 200, 90, 0.7); }
+.card.s-alt .art { background: conic-gradient(from 30deg, #ff7a7a, #ffd84a, #7affb0, #7ac8ff, #c87aff, #ff7a7a); border-style: solid; }
+.card.s-alt .art img.pix { width: 96%; height: 96%; transform: scaleX(-1); filter: drop-shadow(0 0 3px #fff); }
+
+.title .wallet { margin: 8px 0 0; color: var(--lv); font-weight: bold; }
+.menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.points { color: var(--lv); font-weight: bold; }
+.shop { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 20px 0; text-align: center; }
+.packbox { width: 160px; aspect-ratio: 63 / 88; display: grid; place-items: center; border-radius: 12px; border: 3px solid var(--lv); background: linear-gradient(160deg, #2d6cdf, #8a4ad8 50%, #ff6a8a); font-size: 20px; font-weight: 900; text-shadow: 0 2px 0 #000; }
+.opened .cardwrap { animation: flip 0.5s ease-out both; }
+.opened .cardwrap:nth-child(2) { animation-delay: 0.15s; }
+.opened .cardwrap:nth-child(3) { animation-delay: 0.3s; }
+.opened .cardwrap:nth-child(4) { animation-delay: 0.45s; }
+.opened .cardwrap:nth-child(5) { animation-delay: 0.7s; }
+@keyframes flip { from { transform: rotateY(90deg) scale(0.8); opacity: 0; } to { transform: none; opacity: 1; } }
+.cardwrap.none { opacity: 0.28; filter: grayscale(1); }
+.cardwrap .new { position: absolute; top: -8px; left: -6px; padding: 2px 8px; border-radius: 999px; background: #ff4a6a; color: #fff; font-size: 12px; font-weight: 900; }
+.edit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.edit h2 { font-size: 16px; margin: 12px 0 6px; }
+.elist { display: flex; flex-direction: column; gap: 4px; }
+.erow { display: flex; min-width: 0; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 8px; background: #182033; font-size: 13px; }
+.erow .ename { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer; }
+.erow .emb { width: 20px; height: 20px; }
+.erow .n { min-width: 34px; text-align: right; color: var(--lv); font-weight: bold; }
+.erow button.pm { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #3a4560; background: #22304a; color: var(--ink); font: inherit; font-weight: 900; cursor: pointer; }
+.erow button.pm:disabled { opacity: 0.3; }
+.erow .rarity { padding: 0 4px; border-radius: 3px; background: #3a4560; font-size: 10px; font-weight: 900; }
+.errs { color: #ff8a8a; font-size: 13px; }
+.peek { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, 0.6); z-index: 20; }
+.peek .card { width: min(280px, 80vw); font-size: 13px; }
+@media (max-width: 640px) { .edit { grid-template-columns: minmax(0, 1fr); } }
+button.cardwrap { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }

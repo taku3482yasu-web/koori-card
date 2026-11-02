@@ -199,6 +199,54 @@ async function main() {
     const turn = await js('document.querySelector(".turn")?.textContent');
     if (!result) errors.push(`決着しなかった (${turn})`);
     else console.log(`ブラウザのテスト: ${result}（${turn?.trim()}）`);
+    if (result && !(await js('document.querySelector(".result .points")?.textContent.includes("ポイント")'))) errors.push('結果に もらえた ポイントが 出ない');
+    await packs();
+}
+
+// パック (2026-11-03): ショップで はじめの 3 パックを あけ → コレクション → デッキ作りで パックの カードを 入れて 保存
+async function packs() {
+    await click('.result .quit');
+    await sleep(200);
+    if (!(await click('[data-screen="shop"]'))) { errors.push('ショップの ボタンが ない'); return; }
+    await sleep(100);
+    for (let i = 0; i < 3; i++) {
+        if (!(await click('[data-open="1"]:not([disabled])'))) { errors.push(`パックが あけられない (${i + 1} こめ)`); return; }
+        await sleep(900);
+        const n = await js('document.querySelectorAll(".opened .card").length');
+        if (n !== 5) errors.push(`パックから ${n} 枚 出た`);
+    }
+    await snap('pack');
+    if (await js('!!document.querySelector("[data-open=\\"1\\"]:not([disabled])")')) errors.push('パックが 3 こより 多い');
+    await click('[data-screen="title"]');
+    await sleep(100);
+    await click('[data-screen="collection"]');
+    await sleep(100);
+    const got = await js('document.querySelector(".top h1 small").textContent');
+    console.log(`ブラウザのテスト: コレクション ${got}`);
+    await snap('collection');
+    await click('[data-screen="title"]');
+    await sleep(100);
+    // デッキ作り: パックの カードが 入れられる チームを さがして 1 枚 入れかえる
+    await click('[data-screen="edit"]');
+    for (const team of ['bariki', 'koori', 'oni', 'ask3', '5dx', 'muscle', 'bartas', 'kemono']) {
+        await click(`[data-editteam="${team}"]`);
+        await sleep(100);
+        const plus = await js('(() => { const r = [...document.querySelectorAll(".edit section:last-child .erow")].find((x) => x.querySelector(".rarity") && !x.querySelector(".n").textContent.endsWith("/0")); return r ? r.querySelector("[data-plus]").dataset.plus : null; })()');
+        if (!plus) { await click('[data-editteam=""]'); await sleep(60); continue; }
+        await click('[data-minus]');
+        await sleep(60);
+        await click(`[data-plus="${plus}"]`);
+        await sleep(60);
+        await snap('edit');
+        if (!(await click('[data-savedeck="1"]:not([disabled])'))) { errors.push(`デッキが 保存できない: ${await js('document.querySelector(".errs")?.textContent')}`); return; }
+        await sleep(100);
+        await click('[data-screen="title"]');
+        await sleep(100);
+        if (!(await js(`document.querySelector('[data-battle="${team}"]').textContent.includes('自分の デッキ')`))) errors.push('作った デッキが タイトルに 出ない');
+        else console.log(`ブラウザのテスト: ${team} の デッキに パックの カード No.${plus} を 入れた`);
+        return;
+    }
+    errors.push('パックの カードを 入れられる デッキが なかった');
 }
 
 try {

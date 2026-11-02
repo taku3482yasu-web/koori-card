@@ -1,10 +1,11 @@
 // カードの データの 確認 (docs/cards.md と ルール資料の 決まりに 合っているか)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CARDS, RACES, KINDS, DECKS, TEAMS, cardByNo, fitsDeck } from '../src/data/cards.js';
+import { CARDS, RACES, KINDS, DECKS, TEAMS, RARITIES, SECRET, cardByNo, fitsDeck } from '../src/data/cards.js';
 
-test('カードは 201 種で 番号が かぶらず、v0.1 の 1〜60 も のこっている (2026-11-03)', () => {
-    assert.equal(CARDS.length, 201);
+test('カードは 303 種 (スターター 201 + パック 第1弾 102) で 番号が かぶらず、v0.1 の 1〜60 も のこっている (2026-11-03)', () => {
+    assert.equal(CARDS.length, 303);
+    assert.equal(CARDS.filter((c) => c.pack === 1).length, 102);
     assert.equal(new Set(CARDS.map((c) => c.no)).size, CARDS.length);
     for (let no = 1; no <= 60; no++) assert.ok(cardByNo(no), no);
 });
@@ -57,4 +58,15 @@ test('魔法の 属性: ふるカワ・ともいし・道具は ふつう、キ�
     for (const no of [22, 23, 24, 52, 53, 54]) assert.equal(cardByNo(no).race, 'ふつう', cardByNo(no).name);
     assert.equal(cardByNo(19).race, cardByNo(1).race);    // コオリハンマー = こおりくん
     assert.equal(cardByNo(49).race, cardByNo(31).race);   // 鬼鬼の金棒 = おにおに
+});
+
+test('パック 第1弾: レア度は N〜OR・どの デッキにも HR と OR が ある・スターターデッキには 入っていない (2026-11-03)', () => {
+    const pack = CARDS.filter((c) => c.pack === 1);
+    for (const c of pack) assert.ok(RARITIES.includes(c.rarity), c.name);
+    for (const team of Object.keys(DECKS)) {
+        for (const r of ['HR', 'OR']) assert.ok(pack.some((c) => c.team === team && c.rarity === r), `${team} ${r}`);
+    }
+    for (const r of RARITIES) assert.ok(pack.some((c) => c.rarity === r), r);
+    for (const d of Object.values(DECKS)) for (const [no] of d.list) assert.ok(!cardByNo(no).pack, `${d.name} ${no}`);
+    assert.deepEqual(Object.keys(SECRET).sort(), ['HR', 'OR', 'SR']);
 });

@@ -6,7 +6,7 @@
 import { KINDS } from '../data/cards.js';
 import { artURL } from '../art/index.js';
 import { emblemURL } from './emblems.js';
-import { TEAMS } from '../data/cards.js';
+import { TEAMS, SECRET } from '../data/cards.js';
 
 const NOTE = {
     magic: '使ったら墓地へ',
@@ -28,16 +28,19 @@ export function pic(card) {
     return url ? `<img class="pix" src="${url}" alt="">` : `<span>${esc(card.name.slice(0, 1))}</span>`;
 }
 
-export function cardHTML(card) {
+// secret: シークレット (パックで まれに 出る。OR = 別絵柄・HR = プラチナ・SR = ブラック)
+export function cardHTML(card, { secret = false } = {}) {
+    const sec = secret && SECRET[card.rarity];
     const mid = card.kind === 'monster'
         ? `<span class="race">種族：${esc(card.race)}</span><span class="power"><small>パワー</small>${card.power}</span>`
         : `<span class="label">${KINDS[card.kind]}</span>${card.race ? `<span class="race">属性：${esc(card.race)}</span>` : ''}<span class="note">${NOTE[card.kind]}</span>`;
     const text = card.text || (card.dt ? '' : '（効果なし）');
-    return `<article class="card ${card.kind}" data-no="${card.no}">
+    const rare = card.rarity ? `<span class="rarity r-${card.rarity}">${card.rarity}${sec ? ' ★' : ''}</span>` : '';
+    return `<article class="card ${card.kind}${sec ? ` secret s-${sec.id}` : ''}" data-no="${card.no}">
     <header><span class="lv">${card.lv}</span><span class="name">${esc(card.name)}</span>${emblem(card)}</header>
     <div class="art">${pic(card)}</div>
     <div class="mid">${mid}</div>
     <div class="text"><div class="tags"><span class="tag">効果</span>${card.dt ? '<span class="tag dt">⚡ ドタバタトリガー</span>' : ''}</div>${esc(text)}</div>
-    <footer>No.${String(card.no).padStart(3, '0')}　${esc(TEAMS[card.team] || '')}　${esc(card.from)}</footer>
+    <footer>${rare}No.${String(card.no).padStart(3, '0')}　${esc(TEAMS[card.team] || '')}　${esc(card.from)}</footer>
 </article>`;
 }
