@@ -2,7 +2,7 @@
 // カードの 効果 (docs/cards.md v0.3。番号ごと)。画面には ふれない
 // ---------------------------------------------------------------------
 // EFFECTS[no] に その カードの「はたらく ところ (hook)」を 書く。game.js が よぶ。
-//   キーワード: haste 速攻 / blocker ブロッカー (true か (g, u) => bool) / breaks 割る 枚数 / attacks 1 ターンの 攻撃回数 /
+//   キーワード: haste 速攻 (true か (g, u) => bool。Lv1 の 速攻には 制限を つけ、Lv2 から 制限なし。2026-11-03) / blocker ブロッカー (true か (g, u) => bool) / breaks 割る 枚数 / attacks 1 ターンの 攻撃回数 /
 //     noAttack 攻撃できない / noShield シールドを 攻撃できない / firstMonsterOnly 出た ターンは モンスターにしか 攻撃できない /
 //     evolveFrom 【進化】の もと (名前の はじめ)
 //   パワー: power(g, u, ctx) 自分の 分 / aura(g, src, u, ctx) 場の ほかの モンスターへ / scene(g, owner, u, ctx) 場面 /
@@ -155,9 +155,9 @@ export const EFFECTS = {
     31: { enter: async (g, p) => { g.log('「お金かえせ！」'); await g.discard(g.opp(p), 1, 'おにおにに とられる カード'); } },
     32: { haste: true, endOfTurnDie: true },
     33: { enter: killOne(2000, 'オニビン', false) },
-    34: { power: (g, u) => (g.players[u.owner].field.some((x) => x !== u && isOni(x)) ? 2000 : 0) },
-    35: { breaks: 2, power: (g, u) => (g.players[u.owner].shields.length <= 2 ? 3000 : 0) },
-    36: { enter: async (g, p) => g.discard(p, 1, '金滅鬼：捨てる カード') },
+    34: { haste: true, power: (g, u) => (g.players[u.owner].field.some((x) => x !== u && isOni(x)) ? 2000 : 0) },
+    35: { breaks: 2, power: (g, u) => (g.players[u.owner].shields.length <= 3 ? 3000 : 0) },
+    36: { enter: async (g, p) => g.discard(g.opp(p), 1, '金滅鬼：捨てる カード') },
     37: { blocker: true, power: (g, u) => (g.active !== u.owner ? 3000 : 0) },
     38: { blocker: true },
     39: { enter: async (g, p) => g.dropScene(g.opp(p), 'おには そと！') },
@@ -178,7 +178,7 @@ export const EFFECTS = {
     },
     46: { power: (g, u) => (g.players[u.owner].shields.length <= 2 ? 3000 : 0) },
     47: { enter: bounceOne('ルナヤ', false) },
-    48: { enter: async (g, p) => g.discard(p, 2, '大魔王ASO：捨てる カード') },
+    48: { enter: async (g, p) => g.discard(p, 1, '大魔王ASO：捨てる カード') },
     49: { magic: killOne(4000, '鬼鬼の金棒'), want: hasTarget(4000) },
     50: { magic: killAll(5000, '亜祖宇激烈破'), want: (g, p) => g.opp(p).field.filter((u) => g.power(u) <= 5000).length >= 2 },
     51: { magic: killOne(2000, '鬼火'), want: hasTarget(2000) },
@@ -270,7 +270,7 @@ export const EFFECTS = {
     // ===== 鬼鬼団 (新) =====
     95: { evolveFrom: (u) => u.name.startsWith('おにおに（'), breaks: 2 },
     96: { evolveFrom: (u) => u.name === 'おにおに・鬼神', attack: async (g, p) => { g.log('鬼の王の金棒！'); await killOne(5000, '鬼の王の金棒', false)(g, p); } },
-    97: { aura: (g, src, u) => (u.owner === src.owner && isOni(u) ? 1000 : 0) },
+    97: { aura: (g, src, u) => (u.owner === src.owner && isOni(u) ? 2000 : 0) },
     98: { enter: async (g, p) => search(g, p, (c) => c.name.includes('おにおに'), '山札から 手札に 加える「おにおに」を えらんでね') },
     99: { enter: async (g, p) => graveToHand(g, p, (c) => c.kind === 'monster' && isOni(c), '墓地から 手札に 戻す「おにおに」を えらんでね') },
     101: { scene: (g, owner, u) => (u.owner === owner.id && isOni(u) ? 2000 : 0), want: (g, p) => [...p.field, ...p.hand].some(isOni) },
@@ -290,11 +290,11 @@ export const EFFECTS = {
     103: { itemPower: () => 1000, grantHaste: (g, u) => isOni(u) },
     // ===== ASK-3 =====
     104: { enter: peekDiscard },
-    105: { enter: tapOne('計算どおり', false) },
+    105: { haste: true, enter: tapOne('計算どおり', false) },
     106: { power: (g, u) => 1000 * g.players[u.owner].field.filter((x) => x.no === 45).length },
     107: { blocker: true },
     108: { enter: async (g, p) => destroyItem(g, p, 'CSSパックン') },
-    109: { enter: weaken(2000, 'ウイルスン', untilMyNextEnd, false) },
+    109: { enter: weaken(3000, 'ウイルスン', untilMyNextEnd, false) },
     110: { destroyed: async (g, p) => g.discard(g.opp(p), 1, 'ブラクラッシャー：捨てる カード') },
     111: { enter: bounceOne('ノットファウンド', false) },
     112: { enter: async (g, p) => { const t = await g.pickEnemy(p, 'ムゲンループ：とじこめる 相手を えらんでね'); if (t) { g.tap(t); g.stop(t); t.lockUntap = g.turn + 1; } } },
@@ -303,14 +303,14 @@ export const EFFECTS = {
     116: {
         magic: async (g, p) => {
             const o = g.opp(p);
-            if (p.shields.length <= 2) { g.log('ASAPANCHI！！ 一発逆転！'); await g.breakShields(o, 3); } else await killOne(0, 'ASAPANCHI')(g, p);
+            if (p.shields.length <= 3) { g.log('ASAPANCHI！！ 一発逆転！'); await g.breakShields(o, 3); } else await killOne(0, 'ASAPANCHI')(g, p);
         },
-        want: (g, p) => p.shields.length <= 2 || strongEnemy(g, p)
+        want: (g, p) => p.shields.length <= 3 || strongEnemy(g, p)
     },
-    117: { magic: oppDiscard(1), want: (g, p) => g.opp(p).hand.length > 0 },
+    117: { magic: async (g, p) => { await oppDiscard(1)(g, p); g.draw(p, 1); }, want: (g, p) => g.opp(p).hand.length > 0 && p.deck.length > 6 },
     118: { magic: tapOne('計算どおり'), want: (g, p) => g.opp(p).field.some((u) => !u.tapped && g.isBlocker(u)) },
     119: { magic: async (g, p) => { await bounceOne('しめきり厳守', true, 4000)(g, p); await g.discard(g.opp(p), 1, 'しめきり厳守：捨てる カード'); }, want: hasTarget(4000) },
-    120: { scene: (g, owner, u) => (u.owner === owner.id && owner.shields.length <= 3 ? 1000 : 0), want: (g, p) => p.shields.length <= 3 },
+    120: { scene: (g, owner, u) => (u.owner === owner.id ? (owner.shields.length <= 3 ? 2000 : 1000) : 0), want: (g, p) => p.field.length >= 1 },
     121: { breakShield: async (g, p) => g.discard(g.opp(p), 1, 'KINGの王冠：捨てる カード') },
     122: { enter: tapOne('ポップアップン', false) },
     // ===== 5DX =====
@@ -364,7 +364,7 @@ export const EFFECTS = {
     146: { power: (g, u) => 1000 * muscles(g.players[u.owner]) },
     148: { blocker: true },
     149: { breaks: (g, u) => ((u.muscle || 0) >= 3 ? 2 : 1) },
-    150: { haste: true, attack: async (g, p, u) => g.addMuscle(u, 1) },
+    150: { haste: (g, u) => g.players[u.owner].hand.length <= 2, attack: async (g, p, u) => g.addMuscle(u, 1) },
     151: { winBattle: async (g, p, u) => g.addMuscle(u, 1) },
     152: { magic: muscleOne(1), want: (g, p) => p.field.length > 0 },
     153: { magic: pumpOne(3000), want: (g, p) => p.field.some((u) => g.canAttack(u)) },
@@ -395,7 +395,7 @@ export const EFFECTS = {
             await g.discard(g.opp(p), 1, 'ヤーハミー：捨てる カード');
         }
     },
-    159: { enter: async (g, p) => destroyItem(g, p, 'チョッキン'), attack: async (g, p) => tapOne('マエチョッキン', false)(g, p) },
+    159: { haste: true, enter: async (g, p) => destroyItem(g, p, 'チョッキン'), attack: async (g, p) => tapOne('マエチョッキン', false)(g, p) },
     160: {
         enter: async (g, p) => {
             const o = g.opp(p);
@@ -407,10 +407,10 @@ export const EFFECTS = {
     },
     161: { blocker: true, destroyed: async (g, p) => g.discard(g.opp(p), 1, 'タカラミミック：捨てる カード') },
     162: { blocker: true, block: async (g, p) => g.discard(g.opp(p), 1, 'キンコミミック：捨てる カード') },
-    163: { haste: true, attack: async (g, p) => g.discard(g.opp(p), 1, 'ゲニンマン：捨てる カード') },
+    163: { haste: true, attack: async (g, p) => g.discard(g.opp(p), 1, 'ゲニンマン：捨てる カード'), afterAttack: async (g, p, u) => { if (p.field.includes(u)) await g.bounce(u); } },
     164: { enter: stopOne('ジョウニンマン', false) },
     165: { enter: tapOne('シノビガエル', false) },
-    166: { enter: killOne(2000, 'クナイスズメ', false) },
+    166: { enter: killOne(3000, 'クナイスズメ', false) },
     167: { aura: (g, src, u, ctx) => (u.owner !== src.owner && ctx.attacking ? -1000 : 0) },
     168: { destroyed: async (g, p) => tapOne('カゲブンシンダヌキ', false)(g, p) },
     169: { enter: async (g, p) => g.dropScene(g.opp(p), 'ヨッパライガラス') },

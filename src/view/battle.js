@@ -10,7 +10,7 @@ import { cardHTML, pic, emblem } from './card.js';
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export function startBattle(root, myDeck, { onQuit }) {
+export function startBattle(root, myDeck, { onQuit, buddy = null }) {
     // CPU は ほかの スターターデッキから ランダム (2026-11-03 デッキ 8 つ)
     const others = Object.keys(DECKS).filter((id) => id !== myDeck);
     const cpuDeck = others[Math.floor(Math.random() * others.length)];
@@ -27,7 +27,7 @@ export function startBattle(root, myDeck, { onQuit }) {
 
     g = new Game({
         players: [
-            { name: 'あなた', deck: myDeck },
+            { name: 'あなた', deck: myDeck, buddy },
             { name: `CPU（${DECKS[cpuDeck].name}）`, deck: cpuDeck, cpu: true }
         ],
         ask: (pid, req) => new Promise((resolve) => { asking = { req, resolve }; render(); }),

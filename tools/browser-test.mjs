@@ -99,8 +99,15 @@ async function main() {
     await snap('title');
 
     if (!(await click('[data-battle="koori"]'))) throw new Error('デッキを えらぶ ボタンが ない');
+    await sleep(400);
+    // バディを 自分で えらぶ (2026-11-03): おすすめ では ない 2 番目を えらぶ
+    await snap('buddy');
+    const buddyName = await js(`(() => { const b = document.querySelectorAll('[data-buddy]')[1]; if (!b) return null; const n = b.querySelector('.name').textContent; b.click(); return n; })()`);
+    if (!buddyName) throw new Error('バディを えらぶ 画面が ない');
     await sleep(600);
     await snap('battle-start');
+    if (!(await js(`document.body.textContent.includes(${JSON.stringify(buddyName)})`))) errors.push(`えらんだ バディ「${buddyName}」が 出ない`);
+    else console.log(`ブラウザのテスト: バディ「${buddyName}」で たいせん`);
 
     let steps = 0;
     let shotDetail = false;

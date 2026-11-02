@@ -258,3 +258,27 @@ test('手札の カードでも ブロッカーかを 聞ける (条件つきの
     const g = await fresh(18, ['koori', 'oni']);
     for (const no of [5, 126, 3]) assert.equal(g.isBlocker({ ...cardByNo(no) }), true, cardByNo(no).name);
 });
+
+test('バディは 自分で えらべる (チームの モンスター)。えらばなければ おすすめ・ちがう チームは えらべない (2026-11-03)', async () => {
+    const { buddyChoices } = await import('../src/logic/game.js');
+    assert.ok(buddyChoices('koori').every((c) => c.kind === 'monster' && c.team === 'koori'));
+    const g = new Game({ players: [{ name: 'A', deck: 'koori', buddy: 7 }, { name: 'B', deck: 'oni', buddy: 1 }], rand: seeded(21) });
+    assert.equal(g.players[0].buddy.no, 7);
+    assert.equal(g.players[1].buddy.no, DECKS.oni.buddy, '氷隊の こおりくんは 鬼鬼団の バディに できない');
+});
+
+test('速攻: Lv1 の 速攻には 制限が あり、Lv2 からは 制限なし。マグマッチョは 手札が 2 枚以下の ときだけ (2026-11-03)', async () => {
+    const { CARDS } = await import('../src/data/cards.js');
+    const LIMIT = /戻る|墓地へ|以下なら|攻撃できない|しか|捨てれば/;
+    for (const c of CARDS.filter((x) => x.kind === 'monster' && x.text.includes('速攻'))) {
+        if (c.lv === 1) assert.match(c.text, LIMIT, `${c.name} (Lv1) に 制限が ない`);
+    }
+    assert.ok(CARDS.some((c) => c.kind === 'monster' && c.lv >= 2 && c.text.startsWith('速攻')), 'Lv2 からの 制限なし 速攻が ある');
+    const g = await fresh(22, ['muscle', 'koori']);
+    const a = g.players[0];
+    const u = await put(g, a, 150, 9971);
+    a.hand.length = 3;
+    assert.equal(g.canAttack(u), false, '手札 3 枚では 速攻なし');
+    a.hand.length = 2;
+    assert.equal(g.canAttack(u), true, '手札 2 枚なら 速攻');
+});

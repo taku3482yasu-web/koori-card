@@ -5,7 +5,7 @@
 //   req: { title, options: [{ label, value, card?, score }], cancel?: 'ことば' }  → value (cancel なら null)
 // 勝ち負けが 決まったら GameOver を 投げて 処理を 止める。
 // =====================================================================
-import { cardByNo, DECKS } from '../data/cards.js';
+import { cardByNo, DECKS, CARDS } from '../data/cards.js';
 import { effectOf, isKoori } from './effects.js';
 
 export const SHIELDS = 5;
@@ -34,11 +34,13 @@ export function starterDeck(deckId) {
     return DECKS[deckId].list.flatMap(([no, n]) => Array.from({ length: n }, () => no));
 }
 
-function newPlayer(id, name, deckId, cpu, rand) {
+// バディ: デッキの チームの モンスターから えらべる (2026-11-03 ユーザー指定)。えらばなければ デッキの おすすめ
+export const buddyChoices = (deckId) => CARDS.filter((c) => c.kind === 'monster' && c.team === deckId);
+function newPlayer(id, name, deckId, cpu, rand, buddyNo = null) {
     const deck = shuffle(starterDeck(deckId).map(inst), rand);
     const p = {
         id, name, cpu, deckId, deck, hand: [], shields: [], field: [], grave: [],
-        buddy: inst(DECKS[deckId].buddy), scene: null, lv: 1, broken: 0, summoned: false, magicCount: 0, lvDownTurn: 0, discardDrawTurn: 0
+        buddy: inst(buddyNo && buddyChoices(deckId).some((c) => c.no === buddyNo) ? buddyNo : DECKS[deckId].buddy), scene: null, lv: 1, broken: 0, summoned: false, magicCount: 0, lvDownTurn: 0, discardDrawTurn: 0
     };
     for (let i = 0; i < SHIELDS; i++) p.shields.push(p.deck.pop());
     for (let i = 0; i < FIRST_HAND; i++) p.hand.push(p.deck.pop());
@@ -46,12 +48,12 @@ function newPlayer(id, name, deckId, cpu, rand) {
 }
 
 export class Game {
-    // opts: { players: [{ name, deck, cpu }] ×2, first: 0|1, rand, ask, onChange, delay, fx }
+    // opts: { players: [{ name, deck, cpu, buddy }] ×2 (buddy: バディの カード番号。なければ おすすめ), first: 0|1, rand, ask, onChange, delay, fx }
     //   fx({ type: 'attack', unit, target }) / fx({ type: 'destroy', unit }): 画面の 演出を 待つ (ルールは 画面に ふれない)
     constructor(opts) {
         const rand = opts.rand || Math.random;
         this.rand = rand;
-        this.players = opts.players.map((o, i) => newPlayer(i, o.name, o.deck, !!o.cpu, rand));
+        this.players = opts.players.map((o, i) => newPlayer(i, o.name, o.deck, !!o.cpu, rand, o.buddy));
         this.first = opts.first ?? (rand() < 0.5 ? 0 : 1);
         this.active = this.first;
         this.turn = 0;
@@ -155,7 +157,8 @@ export class Game {
         if (effectOf(u.no).noAttack) return false;
         if (u.attacks >= this.maxAttacks(u)) return false;
         if (u.stopTurn === this.turn) return false;
-        return u.enteredTurn < this.turn || u.haste || Boolean(u.item && effectOf(u.item.no).grantHaste?.(this, u));
+        const h = effectOf(u.no).haste;   // 条件つきの 速攻 (マグマッチョ: 手札が 2 枚以下)
+        return u.enteredTurn < this.turn || u.haste || (typeof h === 'function' && h(this, u)) || Boolean(u.item && effectOf(u.item.no).grantHaste?.(this, u));
     }
     // その 相手を 攻撃できるか (シールドに 攻撃できない・出た ターンは モンスターだけ)
     canTarget(u, target) {
@@ -288,7 +291,7 @@ export class Game {
     }
 
     async enter(p, card) {
-        const u = { ...card, card, owner: p.id, item: null, enteredTurn: this.turn, attacks: 0, tapped: false, mods: [], stopTurn: 0, muscle: 0, under: [], haste: Boolean(effectOf(card.no).haste) };
+        const u = { ...card, card, owner: p.id, item: null, enteredTurn: this.turn, attacks: 0, tapped: false, mods: [], stopTurn: 0, muscle: 0, under: [], haste: effectOf(card.no).haste === true };
         p.field.push(u);
         this.onChange();
         await effectOf(card.no).enter?.(this, p, u);

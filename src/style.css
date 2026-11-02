@@ -226,3 +226,7 @@ body {
 .deckpick .style { display: block; margin-top: 4px; font-size: 10px; font-weight: normal; opacity: 0.85; line-height: 1.4; }
 .cardwrap { position: relative; }
 .cardwrap .copies { position: absolute; right: 6px; bottom: 6px; padding: 2px 8px; border-radius: 10px; background: #ffd84a; color: #222; font-weight: 900; font-size: 13px; }
+
+/* バディを えらぶ (2026-11-03) */
+.buddypick { padding: 0; border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.buddypick:hover .card { outline: 3px solid #ffd84a; }

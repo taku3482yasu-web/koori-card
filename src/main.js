@@ -4,11 +4,13 @@ import { CARDS, DECKS, KINDS, cardByNo } from './data/cards.js';
 import { cardHTML } from './view/card.js';
 import { emblemURL } from './view/emblems.js';
 import { startBattle } from './view/battle.js';
+import { buddyChoices } from './logic/game.js';
 
 const app = document.getElementById('app');
 let screen = 'title';
 let deck = 'koori';
 let kind = 'all';
+let pickDeck = null;   // バディを えらんでいる デッキ (2026-11-03: バディは 自分で 決められる)
 
 function render() {
     app.onclick = onClick;
@@ -25,6 +27,17 @@ function render() {
         return;
     }
     // デッキの 中身 (枚数つき)。ノーブランドの タブは ノーブランドの カード ぜんぶ
+    if (screen === 'buddy') {
+        const d = DECKS[pickDeck];
+        app.innerHTML = `
+<header class="top">
+    <h1>${d.name}：バディを えらんでね</h1>
+    <button class="link" data-screen="title">もどる</button>
+</header>
+<p class="count">バディは デッキとは べつに、はじめから 使える 1 枚。チームの モンスターから えらべる</p>
+<section class="grid">${buddyChoices(pickDeck).map((c) => `<button class="cardwrap buddypick" data-buddy="${c.no}">${cardHTML(c)}${c.no === d.buddy ? '<span class="copies">おすすめ</span>' : ''}</button>`).join('')}</section>`;
+        return;
+    }
     const rows = deck === 'nobrand' ? CARDS.filter((c) => c.team === 'nobrand').map((c) => [c, null]) : DECKS[deck].list.map(([no, n]) => [cardByNo(no), n]);
     const list = rows.filter(([c]) => kind === 'all' || c.kind === kind);
     app.innerHTML = `
@@ -48,8 +61,14 @@ function onClick(e) {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.battle) {
+        pickDeck = b.dataset.battle;
+        screen = 'buddy';
+        render();
+        return;
+    }
+    if (b.dataset.buddy) {
         screen = 'battle';
-        startBattle(app, b.dataset.battle, { onQuit: () => { screen = 'title'; render(); } });
+        startBattle(app, pickDeck, { buddy: Number(b.dataset.buddy), onQuit: () => { screen = 'title'; render(); } });
         return;
     }
     if (b.dataset.screen) screen = b.dataset.screen;
