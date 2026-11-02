@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, starterDeck, DECK_SIZE } from '../src/logic/game.js';
 import { cpuTurn } from '../src/logic/cpu.js';
-import { cardByNo } from '../src/data/cards.js';
+import { cardByNo, DECKS } from '../src/data/cards.js';
 
 function seeded(seed) {
     return () => {
@@ -12,10 +12,11 @@ function seeded(seed) {
     };
 }
 
-// カードの 数が 増えたり 減ったり していないか (デッキ 50 + バディ 1)
+// カードの 数が 増えたり 減ったり していないか (2 人で デッキ 50 + バディ 1 ずつ。ノラハンの ねこばば・ヤーハミーの アイテムどろぼうで
+//   プレイヤーの あいだを 動く ことが あるので 2 人の 合計で 見る。進化の 下の カードも 数える)
 function countCards(p) {
     return p.deck.length + p.hand.length + p.shields.length + p.grave.length
-        + p.field.length + p.field.filter((u) => u.item).length + (p.buddy ? 1 : 0) + (p.scene ? 1 : 0);
+        + p.field.reduce((n, u) => n + 1 + (u.item ? 1 : 0) + (u.under ? u.under.length : 0), 0) + (p.buddy ? 1 : 0) + (p.scene ? 1 : 0);
 }
 
 async function cpuGame(seed, decks = ['koori', 'oni']) {
@@ -23,14 +24,14 @@ async function cpuGame(seed, decks = ['koori', 'oni']) {
     await g.start();
     for (let t = 0; t < 200 && g.winner === null; t++) {
         await cpuTurn(g, g.players[g.active]);
-        for (const p of g.players) assert.equal(countCards(p), DECK_SIZE + 1, `seed ${seed} turn ${g.turn}`);
+        assert.equal(countCards(g.players[0]) + countCards(g.players[1]), 2 * (DECK_SIZE + 1), `seed ${seed} turn ${g.turn}`);
         for (const p of g.players) assert.ok(p.field.length <= p.lv + 2);
     }
     return g;
 }
 
 test('構築済みデッキは 50 枚で、同じ カードは 4 枚 (大魔王ASO は 1 枚) まで', () => {
-    for (const id of ['koori', 'oni']) {
+    for (const id of Object.keys(DECKS)) {
         const deck = starterDeck(id);
         assert.equal(deck.length, DECK_SIZE);
         const counts = {};
@@ -49,14 +50,19 @@ test('はじめは シールド 5・手札 6・山札 39・Lv1', () => {
     }
 });
 
-test('CPU どうしで 300 回 遊んで、ぜんぶ 決着する (カードの 数も 正しい)', async () => {
-    const wins = [0, 0];
-    for (let s = 1; s <= 300; s++) {
-        const g = await cpuGame(s, s % 2 ? ['koori', 'oni'] : ['oni', 'koori']);
-        assert.notEqual(g.winner, null, `seed ${s} が 終わらない`);
-        wins[g.players[g.winner].deckId === 'koori' ? 0 : 1]++;
+test('CPU どうしで 8 デッキ 総当たり (各 組み合わせ 10 回) して、ぜんぶ 決着する (カードの 数も 正しい)', async () => {
+    const ids = Object.keys(DECKS), wins = Object.fromEntries(ids.map((id) => [id, 0])), games = Object.fromEntries(ids.map((id) => [id, 0]));
+    let s = 0;
+    for (const a of ids) for (const b of ids) {
+        if (a === b) continue;
+        for (let k = 0; k < 5; k++) {
+            const g = await cpuGame(++s, [a, b]);
+            assert.notEqual(g.winner, null, `seed ${s} ${a} vs ${b} が 終わらない`);
+            wins[g.players[g.winner].deckId]++;
+            games[a]++; games[b]++;
+        }
     }
-    console.log(`氷隊 ${wins[0]} 勝 / 鬼鬼団 ${wins[1]} 勝`);
+    console.log(ids.map((id) => `${DECKS[id].name} ${Math.round(100 * wins[id] / games[id])}%`).join(' / '));
 });
 
 test('先攻の 最初の ターンは 引かない', async () => {
@@ -149,4 +155,106 @@ test('ブロッカー: アンタップなら 攻撃を かわりに うけ、タ
 
     await g.endTurn();                          // B の ターンで アンタップ
     assert.equal(blk.tapped, false);
+});
+
+// ----- スターターデッキ 8 つの 新しい しくみ (2026-11-03) -----
+const fresh = async (seed, decks = ['oni', 'koori']) => { const g = new Game({ players: decks.map((d, i) => ({ name: 'AB'[i], deck: d, cpu: true })), first: 0, rand: seeded(seed) }); await g.start(); return g; };
+const put = (g, p, no, uid) => g.enter(p, { ...cardByNo(no), uid });
+
+test('【進化】: おにおに → 鬼神 → 鬼の王。重ねて 出し、出た ターンも 攻撃できる。やられたら 下の カードも 墓地へ', async () => {
+    const g = await fresh(11);
+    const [a, b] = g.players;
+    a.lv = 3;
+    const base = await put(g, a, 31, 9501);
+    const god = { ...cardByNo(95), uid: 9502 };
+    a.hand.push(god);
+    assert.ok(g.canPlay(a, god));
+    await g.play(a, god);
+    const u = a.field.find((x) => x.no === 95);
+    assert.ok(u && !a.field.includes(base) && u.under.length === 1);
+    assert.ok(g.canAttack(u), '出た ターンも 攻撃できる');
+    assert.equal(g.breaksOf(u), 2);
+    await g.destroy(u, 'テスト');
+    assert.ok(a.grave.some((c) => c.uid === 9501) && a.grave.some((c) => c.uid === 9502));
+    void b;
+});
+
+test('筋肉: 1 こ = パワー +1000。ダンベルは 付けると 筋肉 +1・マッスルジムで さらに +1000', async () => {
+    const g = await fresh(12, ['muscle', 'koori']);
+    const a = g.players[0];
+    const u = await put(g, a, 40, 9601);   // ハリー 4000
+    a.hand.push({ ...cardByNo(156), uid: 9602 });
+    await g.play(a, a.hand[a.hand.length - 1]);
+    assert.equal(u.muscle, 1);
+    assert.equal(g.power(u), 4000 + 1000 + 0);
+    a.scene = { ...cardByNo(213), uid: 9603 };
+    assert.equal(g.power(u), 6000);
+});
+
+test('ASAPANCHI: 自分の シールドが 2 枚以下なら 相手の シールドを 3 枚 割る', async () => {
+    const g = await fresh(13, ['ask3', 'koori']);
+    const [a, b] = g.players;
+    a.lv = 3;
+    a.shields.splice(0, 3);
+    const before = b.shields.length;
+    await g.use(a, { ...cardByNo(116), uid: 9701 });
+    assert.equal(b.shields.length, before - 3);
+});
+
+test('カウンター: ハエトリグサーンを 攻撃すると いっしょに 墓地へ・マンゲツウルフは 攻撃されると +3000', async () => {
+    const g = await fresh(14, ['koori', 'kemono']);
+    const [a, b] = g.players;
+    const atk = await put(g, a, 7, 9801); atk.enteredTurn = 0;   // ヒョウガリュウ 9000
+    const trap = await put(g, b, 185, 9802);
+    await g.attack(atk, trap);
+    assert.ok(!a.field.includes(atk) && !b.field.includes(trap));
+    const atk2 = await put(g, a, 5, 9803); atk2.enteredTurn = 0;  // シロクマッチョ 7000
+    const wolf = await put(g, b, 179, 9804);                      // マンゲツウルフ 5000 (+3000)
+    await g.attack(atk2, wolf);
+    assert.ok(!a.field.includes(atk2) && b.field.includes(wolf), '8000 に まけた');
+});
+
+test('5DX: ハリーメイジで 魔法の Lv が 1 下がり、おかがっぱは 魔法を 使うと +2000', async () => {
+    const g = await fresh(15, ['5dx', 'koori']);
+    const a = g.players[0];
+    const magic = { ...cardByNo(136), uid: 9901 };   // 牛の角アタック Lv2
+    assert.ok(!g.canPlay(a, magic));
+    await put(g, a, 127, 9902);
+    assert.ok(g.canPlay(a, magic));
+    const oka = await put(g, a, 11, 9903);
+    const pw = g.power(oka);
+    await g.use(a, { ...cardByNo(24), uid: 9904 });
+    assert.equal(g.power(oka), pw + 2000);
+});
+
+test('氷隊: ヒョウガメが こおりくんの かわりに やられる・コオリノカガミが かわりに 選ばれる', async () => {
+    const g = await fresh(16, ['oni', 'koori']);
+    const [a, b] = g.players;
+    const koori = await put(g, b, 1, 9951);
+    const turtle = await put(g, b, 92, 9952);
+    await g.destroy(koori, 'テスト');
+    assert.ok(b.field.includes(koori) && !b.field.includes(turtle));
+    const mirror = await put(g, b, 91, 9953);
+    const t = await g.pickEnemy(a, 'テスト', (u) => u === koori);
+    assert.equal(t, mirror);
+});
+
+test('バータス: ノラハンは 相手の 手札を 1 枚 ねこばば・ヤーハミーは アイテムを ぬすむ', async () => {
+    const g = await fresh(17, ['bartas', 'koori']);
+    const [a, b] = g.players;
+    const ha = a.hand.length, hb = b.hand.length;
+    await put(g, a, 160, 9961);
+    assert.equal(a.hand.length, ha + 1);
+    assert.equal(b.hand.length, hb - 1);
+    const holder = await put(g, b, 40, 9962);
+    holder.item = { ...cardByNo(30), uid: 9963 };
+    a.lv = 3;
+    const yahami = await put(g, a, 158, 9964);
+    assert.ok(!holder.item && a.field.some((u) => u.item?.uid === 9963));
+    void yahami;
+});
+
+test('手札の カードでも ブロッカーかを 聞ける (条件つきの ブロッカーも こわれない)', async () => {
+    const g = await fresh(18, ['koori', 'oni']);
+    for (const no of [5, 126, 3]) assert.equal(g.isBlocker({ ...cardByNo(no) }), true, cardByNo(no).name);
 });

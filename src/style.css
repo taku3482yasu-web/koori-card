@@ -78,6 +78,7 @@ body {
     background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15);
     font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.card .emblem { flex: none; width: 28px; height: 28px; image-rendering: auto; }
 .card .art {
     flex: 1; display: grid; place-items: center;
     border: 1px dashed rgba(255, 255, 255, 0.25); border-radius: 6px;
@@ -214,3 +215,14 @@ body {
     .mini .pic { height: 28px; }
     .mini .pw { font-size: 13px; }
 }
+
+/* チームの エンブレム (ミニカードの 右上)・筋肉・進化 (2026-11-03) */
+.mini .emb { position: absolute; top: 1px; right: 1px; width: 15px; height: 15px; }
+.mini .mu { position: absolute; left: 2px; bottom: 16px; font-size: 9px; font-weight: 900; color: #ffb84a; text-shadow: 0 0 2px #000; }
+.mini .ev { position: absolute; right: 2px; bottom: 16px; font-size: 8px; font-weight: 900; color: #ff6a4a; text-shadow: 0 0 2px #000; }
+
+/* デッキ 8 つの えらぶ 画面・カード一覧の 枚数 (2026-11-03) */
+.deckpick .deckemb { display: block; width: 40px; height: 40px; margin: 0 auto 4px; }
+.deckpick .style { display: block; margin-top: 4px; font-size: 10px; font-weight: normal; opacity: 0.85; line-height: 1.4; }
+.cardwrap { position: relative; }
+.cardwrap .copies { position: absolute; right: 6px; bottom: 6px; padding: 2px 8px; border-radius: 10px; background: #ffd84a; color: #222; font-weight: 900; font-size: 13px; }

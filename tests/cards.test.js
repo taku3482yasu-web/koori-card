@@ -1,11 +1,17 @@
 // カードの データの 確認 (docs/cards.md と ルール資料の 決まりに 合っているか)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CARDS, RACES, KINDS, DECKS, cardByNo } from '../src/data/cards.js';
+import { CARDS, RACES, KINDS, DECKS, TEAMS, cardByNo, fitsDeck } from '../src/data/cards.js';
 
-test('カードは 60 種で 番号が 1〜60', () => {
-    assert.equal(CARDS.length, 60);
-    assert.deepEqual(CARDS.map((c) => c.no), Array.from({ length: 60 }, (_, i) => i + 1));
+test('カードは 201 種で 番号が かぶらず、v0.1 の 1〜60 も のこっている (2026-11-03)', () => {
+    assert.equal(CARDS.length, 201);
+    assert.equal(new Set(CARDS.map((c) => c.no)).size, CARDS.length);
+    for (let no = 1; no <= 60; no++) assert.ok(cardByNo(no), no);
+});
+
+test('どの カードも チーム (右上の エンブレム) か ノーブランド', () => {
+    for (const c of CARDS) assert.ok(TEAMS[c.team], c.name);
+    assert.equal(Object.keys(TEAMS).length, 9);
 });
 
 test('名前が かぶっていない', () => {
@@ -27,13 +33,24 @@ test('モンスターは 種族 と パワー、魔法・場面は 属性 (7 属
     }
 });
 
-test('構築済みデッキは それぞれ 30 種で、4 枚まで入れて 50 枚 組める', () => {
+test('スターターデッキ 8 つ: 50 枚・約 30 種・その チームと ノーブランドだけ・4 枚まで (2026-11-03)', () => {
+    assert.deepEqual(Object.keys(DECKS).sort(), ['5dx', 'ask3', 'bariki', 'bartas', 'kemono', 'koori', 'muscle', 'oni']);
     for (const [id, d] of Object.entries(DECKS)) {
-        const list = CARDS.filter((c) => c.deck === id);
-        assert.equal(list.length, 30, d.name);
-        assert.ok(list.reduce((n, c) => n + c.max, 0) >= 50, d.name);
-        assert.equal(cardByNo(d.buddy).deck, id, d.name);
+        assert.equal(d.list.reduce((n, [, k]) => n + k, 0), 50, d.name);
+        assert.ok(d.list.length >= 29 && d.list.length <= 33, `${d.name} ${d.list.length} 種`);
+        for (const [no, n] of d.list) {
+            assert.ok(fitsDeck(cardByNo(no), id), `${d.name} に ${cardByNo(no).name}`);
+            assert.ok(n <= cardByNo(no).max, `${d.name} ${cardByNo(no).name}`);
+        }
+        assert.equal(cardByNo(d.buddy).team, id, d.name);
     }
+});
+
+test('ばりきつよめの こおりくん・おにおには 氷隊・鬼鬼団とは 別の カード', () => {
+    assert.ok(CARDS.some((c) => c.name === 'こおりくん（ばりきつよめ）' && c.team === 'bariki'));
+    assert.ok(CARDS.some((c) => c.name === 'こおりくん（氷隊）' && c.team === 'koori'));
+    assert.ok(CARDS.some((c) => c.name === 'おにおに（ばりきつよめ）' && c.team === 'bariki'));
+    assert.ok(CARDS.some((c) => c.name === 'おにおに（鬼鬼団）' && c.team === 'oni'));
 });
 
 test('魔法の 属性: ふるカワ・ともいし・道具は ふつう、キャラの 技は その キャラと 同じ', () => {

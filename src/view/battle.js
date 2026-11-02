@@ -5,13 +5,15 @@
 import { Game } from '../logic/game.js';
 import { cpuTurn } from '../logic/cpu.js';
 import { DECKS } from '../data/cards.js';
-import { cardHTML, pic } from './card.js';
+import { cardHTML, pic, emblem } from './card.js';
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export function startBattle(root, myDeck, { onQuit }) {
-    const cpuDeck = myDeck === 'koori' ? 'oni' : 'koori';
+    // CPU は ほかの スターターデッキから ランダム (2026-11-03 デッキ 8 つ)
+    const others = Object.keys(DECKS).filter((id) => id !== myDeck);
+    const cpuDeck = others[Math.floor(Math.random() * others.length)];
     let g;
     let busy = false;
     let detail = null;     // { card, from: 'hand'|'buddy'|'field'|'enemy'|'scene' }
@@ -90,10 +92,13 @@ export function startBattle(root, myDeck, { onQuit }) {
         return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''} ${unit?.tapped ? 'tapped' : ''}" data-key="${key}">
     <span class="pic">${pic(card)}</span>
     <span class="lv">${card.lv}</span>
+    ${emblem(card, 'emb')}
     <span class="nm">${esc(card.name)}</span>
     ${card.kind === 'monster' ? `<span class="pw ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${pw}</span>` : `<span class="kd">${{ magic: '魔法', field: '場面', item: 'アイテム' }[card.kind]}</span>`}
     ${unit?.item ? `<span class="it">＋${esc(unit.item.name)}</span>` : ''}
     ${unit && unit.stopTurn > g.turn ? '<span class="st">止</span>' : ''}
+    ${unit?.muscle ? `<span class="mu" title="筋肉">💪${unit.muscle}</span>` : ''}
+    ${unit?.under?.length ? `<span class="ev" title="進化">進化</span>` : ''}
     ${g.isBlocker(card) ? `<span class="bk ${unit && !unit.tapped ? 'on' : ''}" title="ブロッカー">盾</span>` : ''}
     ${card.dt ? '<span class="dtm">⚡</span>' : ''}
 </${tag}>`;

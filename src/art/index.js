@@ -29,7 +29,32 @@ export const CARD_ART = {
     49: 'scene:oni_kanabo', 50: 'scene:aso_burst', 51: 'scene:onibi',
     52: 'scene:sweep_orb', 53: 'scene:tomoishi_bento', 54: 'scene:bad_onigiri',
     55: 'scene:aso_pit', 56: 'scene:net_temple',
-    57: 'new:gold_kanabo', 58: 'item:revive_seed', 59: 'item:haramaki', 60: 'item:onigiri'
+    57: 'new:gold_kanabo', 58: 'item:revive_seed', 59: 'item:haramaki', 60: 'item:onigiri',
+    // スターターデッキ 8 つの 新しい カード (2026-11-03)。技・場面・アイテムは その キャラ・道具の 絵
+    61: 'sprite:haribaby', 62: 'big:daichouenkin', 63: 'sprite:nemuridake', 64: 'sprite:mumenbachi', 65: 'big:kinmenkoinu', 68: 'sprite:koori',
+    69: 'sprite:onioni', 70: 'big:saikoron', 71: 'big:pachinkodaman', 72: 'big:richibou', 73: 'big:gachapon', 74: 'big:yataiman',
+    75: 'sprite:pekorisu', 76: 'big:neontanuki', 77: 'big:maikumbo', 78: 'sprite:koori', 80: 'big:dake', 82: 'big:yasu',
+    84: 'big:richibou', 85: 'item:guard_scarf', 86: 'item:money', 87: 'big:shakkinbourei', 89: 'big:yukimidango', 90: 'big:fubukipenguin',
+    91: 'big:koorinokagami', 92: 'big:hyougame', 93: 'sprite:koori', 94: 'item:ice_pellet', 95: 'sprite:onioni', 96: 'sprite:onioni',
+    97: 'big:taikooni', 98: 'big:aoonibo', 99: 'big:hyoutanoni', 101: 'big:kinmetsuki', 102: 'sprite:onioni', 103: 'big:hannyamen',
+    104: 'big:sasaki', 105: 'big:kotani', 106: 'big:spamking', 107: 'big:htmlmokkun', 108: 'big:csspakkun', 109: 'big:virusn',
+    110: 'big:burakrasher', 111: 'big:notfound', 112: 'big:mugenloop', 113: 'big:firewall', 114: 'big:nullpon', 116: 'big:asahara',
+    117: 'big:sasaki', 118: 'big:kotani', 119: 'big:sasaki', 120: 'big:asahara', 121: 'big:asahara', 122: 'big:popupn',
+    125: 'big:hibikimakuri', 126: 'big:yamamou', 127: 'big:harrymage', 128: 'big:hoshikuzun', 129: 'big:kawarimidanuki', 130: 'big:tsukiusagi',
+    131: 'big:kaguyausagi', 132: 'new:kozarappa', 134: 'big:okagappa', 135: 'big:hibikimakuri', 136: 'big:yamamou', 137: 'big:okagappa',
+    138: 'big:hibikimakuri', 139: 'big:harrymage', 140: 'big:otohimedai', 142: 'big:ueno', 143: 'big:ikekimu', 144: 'big:proteingolem',
+    145: 'big:dumbbellkong', 146: 'big:muscletitan', 148: 'big:yukidarumuscle', 149: 'big:hyouzanmuscle', 150: 'big:magmatcho', 151: 'big:kazanmatcho',
+    152: 'big:proteingolem', 153: 'big:ueno', 154: 'big:nozoema', 155: 'big:ikekimu', 156: 'big:dumbbellkong', 157: 'item:power_band',
+    158: 'big:yahami', 159: 'big:maechokkin', 160: 'big:norahan', 161: 'big:takaramimic', 162: 'big:kinkomimic', 163: 'big:geninman',
+    164: 'big:jouninman', 165: 'big:shinobigaeru', 166: 'big:kunaisuzume', 167: 'big:makibishimushi', 168: 'big:kagebunshin', 169: 'big:yopparaigarasu',
+    170: 'big:yahami', 171: 'big:makibishimushi', 172: 'big:geninman', 173: 'big:norahan', 174: 'big:takaramimic', 175: 'big:yahami',
+    176: 'big:ishii', 177: 'big:mazuda', 178: 'big:naitoon', 179: 'big:mangetsuwolf', 180: 'big:shingetsuwolf', 181: 'big:mikazukibat',
+    182: 'sprite:yofukashi', 183: 'sprite:donguriko', 184: 'big:oodonguriko', 185: 'big:haetorigusan', 186: 'big:isoginchakku', 187: 'big:yoroinukegara',
+    188: 'new:ishikoron', 189: 'big:haetorigusan', 190: 'big:mikazukibat', 191: 'big:ishii', 192: 'big:naitoon', 193: 'big:mangetsuwolf',
+    194: 'big:tsunodaruma', 195: 'big:hakupai', 197: 'big:dumbbellkong', 198: 'big:proteingolem', 199: 'big:shurikenbo', 200: 'big:harrymimic',
+    201: 'big:norahan', 202: 'big:maechokkin', 203: 'big:tatsumakitsune', 204: 'sprite:tsutankobu', 205: 'big:yoakefukurou', 206: 'big:mangetsuwolf',
+    207: 'big:umibozun', 208: 'big:netkozou', 209: 'big:asahara', 210: 'big:okagappa', 211: 'big:hibikimakuri', 212: 'big:hibikimakuri',
+    213: 'big:muscletitan', 214: 'big:shibata', 215: 'big:muscletitan'
 };
 
 const cache = new Map();

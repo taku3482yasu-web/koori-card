@@ -5,6 +5,8 @@
 // =====================================================================
 import { KINDS } from '../data/cards.js';
 import { artURL } from '../art/index.js';
+import { emblemURL } from './emblems.js';
+import { TEAMS } from '../data/cards.js';
 
 const NOTE = {
     magic: '使ったら墓地へ',
@@ -13,6 +15,12 @@ const NOTE = {
 };
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+// チームの エンブレム (右上。2026-11-03)
+export function emblem(card, cls = 'emblem') {
+    const url = emblemURL(card.team);
+    return url ? `<img class="${cls}" src="${url}" alt="${esc(TEAMS[card.team] || '')}" title="${esc(TEAMS[card.team] || '')}">` : '';
+}
 
 // 絵 (前作の ドット絵)。まだ 絵が ない カードは 名前の 頭文字
 export function pic(card) {
@@ -26,10 +34,10 @@ export function cardHTML(card) {
         : `<span class="label">${KINDS[card.kind]}</span>${card.race ? `<span class="race">属性：${esc(card.race)}</span>` : ''}<span class="note">${NOTE[card.kind]}</span>`;
     const text = card.text || (card.dt ? '' : '（効果なし）');
     return `<article class="card ${card.kind}" data-no="${card.no}">
-    <header><span class="lv">${card.lv}</span><span class="name">${esc(card.name)}</span></header>
+    <header><span class="lv">${card.lv}</span><span class="name">${esc(card.name)}</span>${emblem(card)}</header>
     <div class="art">${pic(card)}</div>
     <div class="mid">${mid}</div>
     <div class="text"><div class="tags"><span class="tag">効果</span>${card.dt ? '<span class="tag dt">⚡ ドタバタトリガー</span>' : ''}</div>${esc(text)}</div>
-    <footer>No.${String(card.no).padStart(3, '0')}　${esc(card.from)}</footer>
+    <footer>No.${String(card.no).padStart(3, '0')}　${esc(TEAMS[card.team] || '')}　${esc(card.from)}</footer>
 </article>`;
 }

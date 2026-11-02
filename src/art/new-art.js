@@ -48,5 +48,51 @@ export const NEW_ART = {
             '.....occcco.....',
             '......oooo......'
         ]
+    },
+    // コザラッパ: RPG の 新キャラ (koori-rpg の src/art/new-art.js から 写した)
+    'new:kozarappa': {
+        w: 16, h: 16,
+        palette: {"o":"#1e3a1e","g":"#5ab04a","G":"#8ad07a","s":"#e8d8a0","y":"#ffd84a","k":"#10162a","w":"#ffffff","t":"#7a5a2a"},
+        rows: [
+            '................',
+            '.....oooooo.....',
+            '....ogsssssgo...',
+            '...oggGsssGggo..',
+            '..oggggggggggo..',
+            '..ogwkggggwkgo..',
+            '..oggggyyggggo..',
+            '..oggGyyyyGggo..',
+            '...oggggggggo...',
+            '..ttoGGGGGGottt.',
+            '.gtoggggggggotg.',
+            '..toggggggggot..',
+            '...ogggoogggo...',
+            '...oGGo..oGGo...',
+            '...ooo....ooo...',
+            '................'
+        ]
+    },
+    // イシコロン: RPG の 新キャラ (koori-rpg の src/art/new-art.js から 写した)
+    'new:ishikoron': {
+        w: 16, h: 16,
+        palette: {"o":"#3a3a40","G":"#d4d4dc","g":"#a4a4ae","d":"#70707c","k":"#10162a","w":"#ffffff"},
+        rows: [
+            '................',
+            '................',
+            '.....oooooo.....',
+            '...ooGGGgggoo...',
+            '..oGGgggggggdo..',
+            '.oGGkkgggggkkdo.',
+            '.oGggkwggggwkdo.',
+            '.oggggkggggkgddo',
+            '.ogggggggggggddo',
+            '.oggggkkkkgggddo',
+            '.odgggggggggdddo',
+            '..oddgggggddddo.',
+            '...oodddddddoo..',
+            '.....oooooooo...',
+            '................',
+            '................'
+        ]
     }
 };

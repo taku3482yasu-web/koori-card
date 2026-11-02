@@ -9,7 +9,7 @@ test('CARD_ART の 絵は ぜんぶ ある', () => {
     for (const [no, key] of Object.entries(CARD_ART)) assert.ok(ART[key] || SCENES[key], `${no}: ${key}`);
 });
 
-test('60 種 ぜんぶ 絵が ある (ユーザー指定)', () => {
+test('ぜんぶの カードに 絵が ある (ユーザー指定)', () => {
     for (const c of CARDS) assert.ok(CARD_ART[c.no], c.name);
 });
 

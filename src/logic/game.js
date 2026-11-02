@@ -6,21 +6,13 @@
 // 勝ち負けが 決まったら GameOver を 投げて 処理を 止める。
 // =====================================================================
 import { cardByNo, DECKS } from '../data/cards.js';
+import { effectOf, isKoori } from './effects.js';
 
 export const SHIELDS = 5;
 export const FIRST_HAND = 6;
 export const DECK_SIZE = 50;
 export const MAX_LV = 3;
 export const slotsOf = (lv) => lv + 2;   // Lv1 3 体・Lv2 4 体・Lv3 5 体
-
-const HASTE = new Set([2, 32]);          // 速攻
-const DOUBLE_BREAK = new Set([7, 35]);   // 2 枚割り
-const BLOCKER = new Set([3, 9, 37, 38]); // ブロッカー (アンタップなら 相手の 攻撃を かわりに うける。2026-10-29)
-const NO_OF = {
-    yukiusa: 2, tsurara: 4, penguin: 8, kogame: 9, okagappa: 11, zumitani: 15, sakura: 16, yasu: 18,
-    koonin: 32, dake: 37, shibata: 42, nozoema: 43, hannya: 44, spam: 45, daishi: 46,
-    omamori: 28, scarf: 29, hachimaki: 30, sword: 27, kanabou: 57, tane: 58, haramaki: 59, onigiri: 60
-};
 
 export class GameOver extends Error {
     constructor(winner, reason) { super(reason); this.winner = winner; this.reason = reason; }
@@ -37,27 +29,16 @@ export function shuffle(list, rand = Math.random) {
     return list;
 }
 
-// 構築済みデッキ 50 枚: 全種 1 枚ずつ → Lv1 の カードを 足していく (4 枚まで)
+// スターターデッキ 50 枚 (docs/cards.md の 一覧の 枚数。2026-11-03)
 export function starterDeck(deckId) {
-    const kinds = Object.values(DECK_LIST[deckId]);
-    const counts = new Map(kinds.map((c) => [c.no, 1]));
-    for (let round = 0; round < 3 && sum(counts) < DECK_SIZE; round++) {
-        for (const c of kinds) {
-            if (sum(counts) >= DECK_SIZE) break;
-            if (c.lv === 1 && counts.get(c.no) < c.max) counts.set(c.no, counts.get(c.no) + 1);
-        }
-    }
-    return [...counts].flatMap(([no, n]) => Array.from({ length: n }, () => no));
+    return DECKS[deckId].list.flatMap(([no, n]) => Array.from({ length: n }, () => no));
 }
-const sum = (m) => [...m.values()].reduce((a, b) => a + b, 0);
-const DECK_LIST = Object.fromEntries(Object.keys(DECKS).map((id) => [id, []]));
-for (let no = 1; cardByNo(no); no++) DECK_LIST[cardByNo(no).deck].push(cardByNo(no));
 
 function newPlayer(id, name, deckId, cpu, rand) {
     const deck = shuffle(starterDeck(deckId).map(inst), rand);
     const p = {
         id, name, cpu, deckId, deck, hand: [], shields: [], field: [], grave: [],
-        buddy: inst(DECKS[deckId].buddy), scene: null, lv: 1, broken: 0, summoned: false
+        buddy: inst(DECKS[deckId].buddy), scene: null, lv: 1, broken: 0, summoned: false, magicCount: 0, lvDownTurn: 0, discardDrawTurn: 0
     };
     for (let i = 0; i < SHIELDS; i++) p.shields.push(p.deck.pop());
     for (let i = 0; i < FIRST_HAND; i++) p.hand.push(p.deck.pop());
@@ -119,59 +100,92 @@ export class Game {
     }
 
     // ---------- パワー ----------
-    power(u, { attacking = false } = {}) {
-        const p = this.players[u.owner];
-        const o = this.opp(p);
-        const no = u.no;
-        let pw = u.power;
-        if (u.item) {
-            const it = u.item.no;
-            if (it === NO_OF.sword) pw += u.race === 'こおり' ? 3000 : 1000;
-            if (it === NO_OF.kanabou) pw += u.race === 'ほのお' ? 3000 : 1000;
-            if (it === NO_OF.hachimaki) pw += 2000;
-            if (it === NO_OF.onigiri) pw += 1000;
-            if (it === NO_OF.scarf && this.active !== p.id) pw += 3000;
+    // ctx: { attacking, defending }。カードの 効果 (effects.js) の パワーを ぜんぶ たす。筋肉 1 こ = +1000
+    power(u, ctx = {}) {
+        let pw = u.power + 1000 * (u.muscle || 0);
+        pw += effectOf(u.no).power?.(this, u, ctx) || 0;
+        if (u.item) pw += effectOf(u.item.no).itemPower?.(this, u, ctx) || 0;
+        for (const q of this.players) {
+            if (q.scene) pw += effectOf(q.scene.no).scene?.(this, q, u, ctx) || 0;
+            for (const s of q.field) if (s !== u) pw += effectOf(s.no).aura?.(this, s, u, ctx) || 0;
         }
-        pw += sceneBonus(p.scene, u, true) + sceneBonus(o.scene, u, false);
-        if (u.race === 'しぜん') pw += 1000 * p.field.filter((x) => x !== u && x.no === NO_OF.sakura).length;
-        if (this.active !== p.id) {
-            if (no === NO_OF.kogame) pw += 2000;
-            if (no === NO_OF.dake) pw += 3000;
-        }
-        if (p.shields.length <= 2) {
-            if (no === NO_OF.hannya) pw += 2000;
-            if (no === NO_OF.daishi) pw += 3000;
-        }
-        if (attacking && no === NO_OF.okagappa) pw += 2000;
-        for (const m of u.mods) pw += m.amount;
+        for (const m of u.mods) if (!m.oppTurnOnly || this.active !== u.owner) pw += m.amount;
         return Math.max(0, pw);
     }
 
     // ---------- 出せるか ----------
     slots(p) { return slotsOf(p.lv); }
+    // 出す・使うのに いる Lv (5DX: ハリーメイジ・呪文の連鎖で 魔法は 1 下がる)
+    needLv(p, card) {
+        if (card.kind !== 'magic') return card.lv;
+        const down = (p.field.some((u) => effectOf(u.no).magicLvDown) ? 1 : 0) + (p.lvDownTurn === this.turn ? 1 : 0);
+        return Math.max(1, card.lv - down);
+    }
+    // 【進化】の もとに できる 自分の モンスター
+    evolveBases(p, card) {
+        const from = effectOf(card.no).evolveFrom;
+        return from ? p.field.filter(from) : [];
+    }
     canPlay(p, card) {
         if (this.winner !== null || this.active !== p.id) return false;
-        if (card.lv > p.lv) return false;
+        if (this.needLv(p, card) > p.lv) return false;
+        if (card.kind === 'monster' && effectOf(card.no).evolveFrom) return !p.summoned && this.evolveBases(p, card).length > 0;
         if (card.kind === 'monster') return !p.summoned && p.field.length < this.slots(p);
         if (card.kind === 'item') return p.field.some((u) => !u.item);
         return true;
     }
     whyNot(p, card) {
-        if (card.lv > p.lv) return `Lv${card.lv} から（いまは Lv${p.lv}）`;
+        if (this.needLv(p, card) > p.lv) return `Lv${this.needLv(p, card)} から（いまは Lv${p.lv}）`;
         if (card.kind === 'monster' && p.summoned) return 'モンスターは 1 ターンに 1 体まで';
+        if (card.kind === 'monster' && effectOf(card.no).evolveFrom) return '進化の もとに なる モンスターが 場に いない';
         if (card.kind === 'monster') return `場が いっぱい（${this.slots(p)} 体まで）`;
         if (card.kind === 'item') return 'アイテムを 付けられる モンスターが いない';
         return '';
     }
-    maxAttacks(u) { return u.no === NO_OF.zumitani ? 2 : 1; }
-    isBlocker(u) { return BLOCKER.has(u.no); }
+    maxAttacks(u) { return effectOf(u.no).attacks || 1; }
+    isBlocker(u) {
+        const b = effectOf(u.no).blocker;
+        if (b === true) return true;
+        if (typeof b === 'function') return u.owner === undefined || b(this, u);   // 手札の カード (場に いない) は「ブロッカーに なれる」として 見せる
+        return Boolean(u.item && effectOf(u.item.no).grantBlocker?.(this, u));
+    }
     canBlock(u) { return this.isBlocker(u) && !u.tapped; }
     canAttack(u) {
         if (this.winner !== null || u.owner !== this.active) return false;
+        if (effectOf(u.no).noAttack) return false;
         if (u.attacks >= this.maxAttacks(u)) return false;
         if (u.stopTurn === this.turn) return false;
-        return u.enteredTurn < this.turn || u.haste;
+        return u.enteredTurn < this.turn || u.haste || Boolean(u.item && effectOf(u.item.no).grantHaste?.(this, u));
     }
+    // その 相手を 攻撃できるか (シールドに 攻撃できない・出た ターンは モンスターだけ)
+    canTarget(u, target) {
+        const e = effectOf(u.no);
+        if (target === 'shield') return !e.noShield && !(e.firstMonsterOnly && u.enteredTurn === this.turn);
+        return true;
+    }
+    breaksOf(u) {
+        const b = effectOf(u.no).breaks;
+        const n = typeof b === 'function' ? b(this, u) : b || 1;
+        return n + (u.item ? effectOf(u.item.no).extraBreaks?.(this, u) || 0 : 0);
+    }
+    addMuscle(u, n) {
+        u.muscle = (u.muscle || 0) + n;
+        this.log(`${u.name} に 筋肉 +${n}（パワー +${n * 1000}）`);
+    }
+    tap(u) { u.tapped = true; this.log(`${u.name} を タップした`); }
+    dropScene(o, why) {
+        if (!o.scene) return;
+        this.log(`${why}：場面「${o.scene.name}」は 墓地へ`);
+        o.grave.push(o.scene);
+        o.scene = null;
+    }
+    dropItem(u, why) {
+        if (!u.item) return;
+        this.log(`${why}：${u.name} の ${u.item.name} は 墓地へ`);
+        this.players[u.owner].grave.push(u.item);
+        u.item = null;
+    }
+    shuffleDeck(p) { shuffle(p.deck, this.rand); }
 
     // ---------- ターン ----------
     async start() {
@@ -184,9 +198,11 @@ export class Game {
         this.turn++;
         const p = this.players[this.active];
         p.summoned = false;
-        for (const u of p.field) { u.attacks = 0; u.tapped = false; }   // 自分の ターンの はじめに アンタップ
+        p.magicCount = 0;
+        for (const u of p.field) { u.attacks = 0; if (u.lockUntap !== this.turn) u.tapped = false; }   // 自分の ターンの はじめに アンタップ (ムゲンループは しない)
         this.log(`── ${this.turn} ターン目：${p.name} ──`);
         if (this.turn > 1) this.draw(p);
+        if (p.scene) await effectOf(p.scene.no).turnStart?.(this, p);   // 筋肉の山
         this.onChange();
     }
     // 人も CPU も ターンの 終わりに よぶ
@@ -194,7 +210,7 @@ export class Game {
         try {
             const p = this.players[this.active];
             for (const u of [...p.field, ...this.opp(p).field]) {
-                if (u.no === NO_OF.koonin) await this.sendToGrave(u, 'こおにの つっこみ');
+                if (effectOf(u.no).endOfTurnDie) await this.sendToGrave(u, 'こおにの つっこみ');
             }
             for (const q of this.players) for (const u of q.field) u.mods = u.mods.filter((m) => m.until > this.turn);
             this.active = 1 - this.active;
@@ -211,7 +227,11 @@ export class Game {
             if (from === 'buddy') p.buddy = null;
             else p.hand.splice(p.hand.indexOf(card), 1);
             if (card.kind === 'monster') p.summoned = true;
-            await this.use(p, card, { from });
+            if (card.kind === 'monster' && effectOf(card.no).evolveFrom) {
+                const bases = this.evolveBases(p, card);
+                const base = await this.ask(p, { title: `${card.name} に 進化させる モンスターを えらんでね`, options: bases.map((u) => ({ label: u.name, value: u, card: u, score: this.power(u) })) });
+                await this.evolve(p, base, card);
+            } else await this.use(p, card, { from });
         } catch (e) { if (!(e instanceof GameOver)) throw e; }
         this.onChange();
         return true;
@@ -220,7 +240,12 @@ export class Game {
     // 手札などから 出た カードを 解決する (trigger: シールドから タダで)
     async use(p, card, { trigger = false } = {}) {
         const head = trigger ? `⚡ ドタバタトリガー！ ${p.name} は` : `${p.name} は`;
-        if (card.kind === 'monster') {
+        if (card.kind === 'monster' && effectOf(card.no).evolveFrom) {
+            // トリガーで 来た 進化の カードは、もとが いれば 進化・いなければ 手札へ
+            const bases = this.evolveBases(p, card);
+            if (!bases.length) { p.hand.push(card); this.log(`${card.name} は 進化の もとが いないので 手札へ`); return; }
+            await this.evolve(p, bases[0], card);
+        } else if (card.kind === 'monster') {
             if (p.field.length >= this.slots(p)) {
                 if (!trigger) { p.hand.push(card); return; }
                 const out = await this.ask(p, {
@@ -244,20 +269,40 @@ export class Game {
             });
             u.item = card;
             this.log(`${head} ${card.name} を ${u.name} に 付けた`);
+            await effectOf(card.no).attach?.(this, p, u);
         } else {
             this.log(`${head} 魔法「${card.name}」を 使った`);
-            await MAGIC[card.no]?.(this, p);
-            p.grave.push(card);
+            await this.castFree(p, card);
         }
         await this.sweepZero();
         this.onChange();
     }
 
+    // 魔法を 使う (効果 → 墓地へ → 「魔法を 使ったとき」の 効果)
+    async castFree(p, card) {
+        await effectOf(card.no).magic?.(this, p);
+        p.grave.push(card);
+        p.magicCount++;
+        for (const u of [...p.field]) if (p.field.includes(u)) await effectOf(u.no).onMagic?.(this, p, u);
+        if (p.scene) await effectOf(p.scene.no).onMagicScene?.(this, p);
+    }
+
     async enter(p, card) {
-        const u = { ...card, card, owner: p.id, item: null, enteredTurn: this.turn, attacks: 0, tapped: false, mods: [], stopTurn: 0, haste: HASTE.has(card.no) };
+        const u = { ...card, card, owner: p.id, item: null, enteredTurn: this.turn, attacks: 0, tapped: false, mods: [], stopTurn: 0, muscle: 0, under: [], haste: Boolean(effectOf(card.no).haste) };
         p.field.push(u);
         this.onChange();
-        await ENTER[card.no]?.(this, p, u);
+        await effectOf(card.no).enter?.(this, p, u);
+        return u;
+    }
+    // 【進化】: もとの モンスターの 上に 重ねる。タップ・アイテム・筋肉は 引きつぎ、出た ターンも 攻撃できる (2026-11-03 ユーザー回答)
+    async evolve(p, base, card) {
+        const i = p.field.indexOf(base);
+        const u = { ...card, card, owner: p.id, item: base.item, enteredTurn: base.enteredTurn, attacks: base.attacks, tapped: base.tapped, mods: base.mods, stopTurn: base.stopTurn,
+            muscle: base.muscle || 0, under: [...(base.under || []), base.card], haste: true };
+        p.field[i] = u;
+        this.log(`${base.name} が ${card.name} に 進化した！`);
+        this.onChange();
+        await effectOf(card.no).enter?.(this, p, u);
         return u;
     }
 
@@ -273,13 +318,14 @@ export class Game {
         const p = this.players[u.owner];
         if (!this.detach(u)) return;
         if (u.item) p.grave.push(u.item);
-        p.grave.push(u.card);
+        p.grave.push(...(u.under || []), u.card);
         this.log(`${u.name} は 墓地へ${why ? `（${why}）` : ''}`);
     }
     async bounce(u) {
         const p = this.players[u.owner];
         if (!this.detach(u)) return;
         if (u.item) p.grave.push(u.item);
+        p.grave.push(...(u.under || []));
         p.hand.push(u.card);
         this.log(`${u.name} は ${p.name} の 手札に もどった`);
     }
@@ -294,52 +340,49 @@ export class Game {
             }
         }
     }
-    // やられる (バトル・効果)。お守りで 守られたら false (guard: false なら お守りは 効かない)
-    async destroy(u, why = '', { guard = true } = {}) {
+    // やられる (バトル・効果)。守られたら false (guard: false なら お守り・ベルト・ヒョウガメは 効かない)
+    //   by: バトルで たおした 相手 (ツララボウの みちづれ)
+    async destroy(u, why = '', { guard = true, battle = false, by = null } = {}) {
         const p = this.players[u.owner];
         if (!p.field.includes(u)) return false;
-        if (guard && u.item?.no === NO_OF.omamori) {
+        if (guard && u.item && effectOf(u.item.no).guard) {
             p.grave.push(u.item);
+            this.log(`${u.item.name}が ${u.name} を まもった`);
             u.item = null;
-            this.log(`ふるカワのお守りが ${u.name} を まもった`);
+            return false;
+        }
+        const keeper = guard && isKoori(u) && p.field.find((x) => x !== u && effectOf(x.no).protectKoori);
+        if (keeper) {
+            this.log(`${keeper.name}が こおりくんの かわりに やられた！`);
+            await this.destroy(keeper, 'みがわり', { guard: false });
             return false;
         }
         await this.fx({ type: 'destroy', unit: u });
-        if (u.item?.no === NO_OF.tane) {
+        const item = u.item;
+        if (item && effectOf(item.no).revive) {
             this.detach(u);
-            p.grave.push(u.item);
+            p.grave.push(item, ...(u.under || []));
             p.hand.push(u.card);
             this.log(`${u.name} は やられたが、ふっかつのたねで 手札に もどった`);
         } else {
             await this.sendToGrave(u, why);
         }
-        if (u.no === NO_OF.yasu && p.deck.length) {
-            p.shields.push(this.takeTop(p));
-            this.log(`やすさんの 応急手当：${p.name} の シールドが 1 枚 ふえた`);
-        }
-        if (u.no === NO_OF.spam) {
-            const next = p.hand.find((c) => c.no === NO_OF.spam);
-            if (next && p.field.length < this.slots(p)) {
-                const ok = await this.ask(p, {
-                    title: 'スパムダマが 分裂！ 手札の スパムダマを 出す？',
-                    options: [{ label: '出す', value: true, card: next, score: 1 }], cancel: '出さない'
-                });
-                if (ok) {
-                    p.hand.splice(p.hand.indexOf(next), 1);
-                    this.log(`スパムダマが 分裂した`);
-                    await this.enter(p, next);
-                }
-            }
-        }
+        if (item) await effectOf(item.no).itemDestroyed?.(this, p, u);
+        await effectOf(u.no).destroyed?.(this, p, u, { battle, by });
         return true;
     }
 
     // ---------- 選ぶ 道具 ----------
     // 相手の モンスターを 1 体 (magic: はらまきの モンスターは 選べない)
+    //   コオリノカガミ (氷隊): こおりくんが 選ばれたら かわりに コオリノカガミ
     async pickEnemy(p, title, filter = () => true, { magic = false } = {}) {
-        const list = this.opp(p).field.filter((u) => filter(u) && !(magic && u.item?.no === NO_OF.haramaki));
+        const o = this.opp(p);
+        const list = o.field.filter((u) => filter(u) && !(magic && u.item && effectOf(u.item.no).haramaki));
         if (!list.length) { this.log('えらべる 相手が いない'); return null; }
-        return this.ask(p, { title, options: list.map((u) => ({ label: `${u.name}（${this.power(u)}）`, value: u, card: u, score: this.power(u) })) });
+        let t = await this.ask(p, { title, options: list.map((u) => ({ label: `${u.name}（${this.power(u)}）`, value: u, card: u, score: this.power(u) })) });
+        const decoy = t && isKoori(t) && o.field.find((x) => x !== t && effectOf(x.no).decoy);
+        if (decoy) { this.log(`${decoy.name}が こおりくんの かわりに うけた！`); t = decoy; }
+        return t;
     }
     async discard(p, n, title) {
         for (let i = 0; i < n && p.hand.length; i++) {
@@ -350,6 +393,32 @@ export class Game {
             p.hand.splice(p.hand.indexOf(c), 1);
             p.grave.push(c);
             this.log(`${p.name} は ${c.name} を 捨てた`);
+            await this.afterDiscard(p);
+        }
+    }
+    // 相手の 手札を 見て 1 枚 えらんで 捨てさせる
+    async chooseDiscard(p, o) {
+        if (!o.hand.length) return;
+        const c = await this.ask(p, { title: `${o.name} の 手札：捨てさせる カードを えらんでね`, options: o.hand.map((x) => ({ label: x.name, value: x, card: x, score: cardValue(x) })) });
+        o.hand.splice(o.hand.indexOf(c), 1);
+        o.grave.push(c);
+        this.log(`${o.name} は ${c.name} を 捨てさせられた`);
+        await this.afterDiscard(o);
+    }
+    async discardRandom(o, why) {
+        if (!o.hand.length) return;
+        const c = o.hand.splice(Math.floor(this.rand() * o.hand.length), 1)[0];
+        o.grave.push(c);
+        this.log(`${why}：${o.name} は ${c.name} を 捨てた`);
+        await this.afterDiscard(o);
+    }
+    // 盗賊のアジト (バータス): 相手が 捨てたら 1 枚 引く (1 ターンに 1 回)
+    async afterDiscard(who) {
+        const q = this.opp(who);
+        if (q.scene && effectOf(q.scene.no).oppDiscardScene && q.discardDrawTurn !== this.turn && q.deck.length > 1) {
+            q.discardDrawTurn = this.turn;
+            this.log('盗賊のアジト：1 枚 引く');
+            this.draw(q, 1);
         }
     }
     // 次の 相手の ターンに 攻撃できない
@@ -361,47 +430,69 @@ export class Game {
     // ---------- 攻撃 ----------
     // target: 相手の モンスター か 'shield'
     async attack(u, target) {
-        if (!this.canAttack(u)) return false;
+        if (!this.canAttack(u) || !this.canTarget(u, target)) return false;
         const p = this.players[u.owner];
         const o = this.opp(p);
         try {
             u.attacks++;
             u.tapped = true;   // 攻撃したら タップ (次の 自分の ターンまで ブロックできない)
-            if (u.no === NO_OF.nozoema) {
-                this.log('ノゾエマの 鏡筋一刀斬り！');
-                for (const x of o.field.filter((x) => this.power(x) <= 2000)) await this.destroy(x, '鏡筋一刀斬り');
-            }
-            target = await this.askBlock(u, target);
+            let atkBonus = 0;
+            await effectOf(u.no).attack?.(this, p, u, { target });
+            if (u.item) await effectOf(u.item.no).itemAttack?.(this, p, u);
+            for (const s of [...p.field]) if (s !== u) atkBonus += (await effectOf(s.no).allyAttack?.(this, p, s, u)) || 0;
+            if (!p.field.includes(u)) { this.onChange(); return true; }
+            if (target !== 'shield' && !o.field.includes(target)) target = 'shield';
+            const blocked = u.item && effectOf(u.item.no).unblockable ? target : await this.askBlock(u, target);
+            const isBlock = blocked !== target;
+            target = blocked;
             if (target === 'shield') {
                 if (o.shields.length === 0) { await this.fx({ type: 'attack', unit: u, target }); this.win(p, `${u.name} の ダイレクトアタック`); }
-                const n = DOUBLE_BREAK.has(u.no) ? 2 : 1;
+                const n = this.breaksOf(u);
                 this.log(`${u.name} が シールドを こうげき！`);
                 await this.fx({ type: 'attack', unit: u, target });
+                const before = o.shields.length;
                 await this.breakShields(o, n);
+                if (u.item) for (let k = 0; k < before - o.shields.length; k++) await effectOf(u.item.no).breakShield?.(this, p, u);
             } else if (o.field.includes(target)) {
-                const ap = this.power(u, { attacking: true });
-                const dp = this.power(target);
-                this.log(`${u.name}（${ap}）が ${target.name}（${dp}）に こうげき！`);
-                await this.fx({ type: 'attack', unit: u, target });
-                await this.delay();
-                if (ap >= dp) {
-                    const won = await this.destroy(target, 'バトルで まけた');
-                    if (won && u.no === NO_OF.shibata && o.shields.length) {
-                        this.log('シバターの 追いうち！');
-                        await this.breakShields(o, 1);
-                    }
-                    if (won && target.no === NO_OF.tsurara) await this.destroy(u, 'ツララボウの みちづれ');
-                }
-                if (ap <= dp) {
-                    const lost = await this.destroy(u, ap === dp ? 'あいうち' : 'バトルで まけた');
-                    if (lost && u.no === NO_OF.tsurara && ap < dp) await this.destroy(target, 'ツララボウの みちづれ');
-                }
+                await this.battle(p, o, u, target, { isBlock, atkBonus });
             }
-            if (u.no === NO_OF.yukiusa && p.field.includes(u)) await this.bounce(u);
+            if (p.field.includes(u)) await effectOf(u.no).afterAttack?.(this, p, u);
             await this.sweepZero();
         } catch (e) { if (!(e instanceof GameOver)) throw e; }
         this.onChange();
         return true;
+    }
+
+    // モンスターどうしの バトル (攻撃した u と うけた d)
+    async battle(p, o, u, d, { isBlock, atkBonus }) {
+        let atk = atkBonus, def = 0, trap = false;
+        const eff = (r) => { if (!r) return; if (r.log) this.log(r.log); atk += r.atk || 0; def += r.def || 0; if (r.trap) trap = true; };
+        if (isBlock) {
+            eff(await effectOf(d.no).block?.(this, o, d, u));
+            for (const s of [...o.field]) if (s !== d) await effectOf(s.no).allyBlock?.(this, o, s, d, u);
+            if (d.item) def += effectOf(d.item.no).blockPower || 0;
+        }
+        eff(await effectOf(d.no).attacked?.(this, o, d, u));
+        if (!p.field.includes(u) || !o.field.includes(d)) return;   // カウンターで いなく なった
+        if (trap) {
+            // ハエトリグサーン: 攻撃して きた モンスターと いっしょに 墓地へ
+            await this.destroy(u, 'ハエトリグサーン');
+            await this.destroy(d, 'ハエトリグサーン');
+            return;
+        }
+        const ap = this.power(u, { attacking: true }) + atk;
+        const dp = this.power(d, { defending: true }) + def;
+        this.log(`${u.name}（${ap}）が ${d.name}（${dp}）に こうげき！`);
+        await this.fx({ type: 'attack', unit: u, target: d });
+        await this.delay();
+        if (ap >= dp) {
+            const won = await this.destroy(d, 'バトルで まけた', { battle: true, by: u });
+            if (won && p.field.includes(u)) await effectOf(u.no).winBattle?.(this, p, u, d);
+        }
+        if (ap <= dp) {
+            const lost = await this.destroy(u, ap === dp ? 'あいうち' : 'バトルで まけた', { battle: true, by: d });
+            if (lost && isBlock && o.field.includes(d) && ap < dp) await effectOf(d.no).blockWin?.(this, o, d, u);
+        }
     }
 
     // ブロック: 相手は アンタップの ブロッカーで 攻撃を かわりに うけられる (ブロックした モンスターは タップ)
@@ -463,84 +554,3 @@ export class Game {
 
 const cardValue = (c) => (c.power || 3000) + c.lv * 1000;
 
-function sceneBonus(scene, u, mine) {
-    if (!scene) return 0;
-    const own = { 25: 'こおり', 26: 'みず', 55: 'ほのお', 56: 'ふしぎ' }[scene.no];
-    const enemy = { 26: 'ほのお', 55: 'こおり' }[scene.no];
-    if (mine) return u.race === own ? 1000 : 0;
-    return u.race === enemy ? -1000 : 0;
-}
-
-// ---------- 【出たとき】 ----------
-const ENTER = {
-    1: async (g, p) => { const t = await g.pickEnemy(p, 'コオリソード！ パワー3000以下の 相手を えらんでね', (u) => g.power(u) <= 3000); if (t) await g.destroy(t, 'コオリソード'); },
-    6: async (g, p) => {
-        const t = await g.pickEnemy(p, 'パワーを -3000 する 相手を えらんでね');
-        if (t) { t.mods.push({ amount: -3000, until: g.active === p.id ? g.turn + 2 : g.turn + 1 }); g.log(`${t.name} の パワーが -3000`); }
-    },
-    8: async (g, p, u) => {
-        if (!p.hand.length || g.active !== p.id) return;
-        const ok = await g.ask(p, { title: '手札を 1 枚 捨てて、このターン 速攻に する？', options: [{ label: '捨てて 速攻', value: true, score: 0 }], cancel: 'しない', cancelScore: 0.5 });
-        if (ok) { await g.discard(p, 1, '捨てる カード'); u.haste = true; g.log('ペンギンナイトは 速攻に なった'); }
-    },
-    10: async (g, p) => {
-        const list = p.grave.filter((c) => c.kind === 'monster');
-        if (!list.length) return;
-        const c = await g.ask(p, { title: '墓地から 手札に 戻す モンスターを えらんでね', options: list.map((x) => ({ label: x.name, value: x, card: x, score: cardValue(x) })) });
-        p.grave.splice(p.grave.indexOf(c), 1);
-        p.hand.push(c);
-        g.log(`${c.name} を 墓地から 手札に 戻した`);
-    },
-    12: async (g, p) => { const t = await g.pickEnemy(p, 'アクアブレス！ 墓地へ 送る 相手を えらんでね'); if (t) await g.destroy(t, 'アクアブレス'); },
-    13: async (g, p) => g.draw(p, 1),
-    14: async (g, p) => { const t = await g.pickEnemy(p, 'たむキック！ 止める 相手を えらんでね'); if (t) g.stop(t); },
-    17: async (g, p) => {
-        const list = p.grave.filter((c) => c.kind === 'monster' && c.lv === 1);
-        if (!list.length || p.field.length >= g.slots(p)) return;
-        const c = await g.ask(p, { title: '墓地から 場に 出す Lv1 の モンスターを えらんでね', options: list.map((x) => ({ label: x.name, value: x, card: x, score: cardValue(x) })) });
-        p.grave.splice(p.grave.indexOf(c), 1);
-        g.log(`ハル麒麟が ${c.name} を よんだ`);
-        await g.enter(p, c);
-    },
-    31: async (g, p) => { const o = g.opp(p); g.log('「お金かえせ！」'); await g.discard(o, 1, 'おにおにに とられる カード'); },
-    33: async (g, p) => { const t = await g.pickEnemy(p, 'パワー2000以下の 相手を えらんでね', (u) => g.power(u) <= 2000); if (t) await g.destroy(t, 'オニビン'); },
-    36: async (g, p) => g.discard(p, 1, '金滅鬼：捨てる カード'),
-    39: async (g, p) => {
-        const o = g.opp(p);
-        if (!o.scene) return;
-        g.log(`おには そと！ 場面「${o.scene.name}」は 墓地へ`);
-        o.grave.push(o.scene);
-        o.scene = null;
-    },
-    41: async (g, p) => { g.draw(p, 2); await g.discard(p, 1, 'ゴールド金面犬：捨てる カード'); },
-    47: async (g, p) => { const t = await g.pickEnemy(p, '手札に 戻す 相手を えらんでね'); if (t) await g.bounce(t); },
-    48: async (g, p) => g.discard(p, 2, '大魔王ASO：捨てる カード')
-};
-
-// ---------- 魔法 ----------
-const killOne = (max, why) => async (g, p) => {
-    const t = await g.pickEnemy(p, `${why}：${max ? `パワー${max}以下の ` : ''}相手を えらんでね`, (u) => !max || g.power(u) <= max, { magic: true });
-    if (t) await g.destroy(t, why);
-};
-const killAll = (max, why) => async (g, p) => {
-    for (const u of g.opp(p).field.filter((u) => g.power(u) <= max)) await g.destroy(u, why);
-};
-const stopOne = (why) => async (g, p) => { const t = await g.pickEnemy(p, `${why}：止める 相手を えらんでね`, () => true, { magic: true }); if (t) g.stop(t); };
-const MAGIC = {
-    19: killOne(4000, 'コオリハンマー'),
-    20: killOne(0, '四天王絶対殺す剣'),
-    21: stopOne('こおりのいき'),
-    22: async (g, p) => {
-        if (p.shields.length > 4) return g.log('シールドが 5 枚 あるので なにも おきない');
-        p.shields.push(g.takeTop(p));
-        g.log(`${p.name} の シールドが 1 枚 ふえた`);
-    },
-    23: async (g, p) => { const t = await g.pickEnemy(p, 'ワープ玉：手札に 戻す 相手を えらんでね', () => true, { magic: true }); if (t) await g.bounce(t); },
-    24: async (g, p) => g.draw(p, 2),
-    49: killOne(4000, '鬼鬼の金棒'),
-    50: killAll(5000, '亜祖宇激烈破'),
-    51: killOne(2000, '鬼火'),
-    52: killAll(2000, '一網打尽玉'),
-    53: async (g, p) => g.draw(p, 2),
-    54: stopOne('腐ったおにぎり')
-};
