@@ -114,7 +114,7 @@ export const EFFECTS = {
     10: { enter: async (g, p) => graveToHand(g, p, (c) => c.kind === 'monster', '墓地から 手札に 戻す モンスターを えらんでね') },
     11: {
         power: (g, u, ctx) => (ctx.attacking ? 2000 : 0),
-        onMagic: async (g, p, u) => { u.mods.push({ amount: 2000, until: thisTurn(g) }); g.log('おかがっぱの パワーが +2000'); }
+        onMagic: async (g, p, u) => { u.mods.push({ amount: 1000, until: thisTurn(g) }); g.log('おかがっぱの パワーが +1000'); }
     },
     12: { enter: killOne(0, 'アクアブレス', false) },
     13: { enter: draw(1) },
@@ -316,7 +316,7 @@ export const EFFECTS = {
     // ===== 5DX =====
     125: {
         enter: async (g, p) => graveToHand(g, p, (c) => c.kind === 'magic', '墓地から 手札に 戻す 魔法を えらんでね'),
-        onMagic: async (g, p) => weaken(1000, 'ひびき', thisTurn, false)(g, p)
+        onMagic: async (g, p, u) => { if (u.echoTurn === g.turn) return; u.echoTurn = g.turn; await weaken(1000, 'ひびき', thisTurn, false)(g, p); }   // 1 ターンに 1 回
     },
     126: { blocker: true, power: (g, u) => (g.players[u.owner].field.some(isOkaHibiki) ? 2000 : 0) },
     127: { magicLvDown: true },
@@ -351,8 +351,8 @@ export const EFFECTS = {
     },
     134: { magic: killOne(3000, 'カッパのお皿ビーム'), want: hasTarget(3000) },
     135: { magic: async (g, p) => { await stopOne('響きの波')(g, p); g.draw(p, 1); }, want: (g, p) => strongEnemy(g, p) || canDraw(g, p) },
-    136: { magic: killOne(6000, '牛の角アタック'), want: hasTarget(6000) },
-    137: { magic: async (g, p) => killOne(p.field.some((u) => u.name === 'おかがっぱ') ? 0 : 5000, 'おかピポっと光線')(g, p), want: (g, p) => hasTarget(p.field.some((u) => u.name === 'おかがっぱ') ? 0 : 5000)(g, p) },
+    136: { magic: killOne(5000, '牛の角アタック'), want: hasTarget(5000) },
+    137: { magic: async (g, p) => killOne(p.field.some((u) => u.name === 'おかがっぱ') ? 0 : 4000, 'おかピポっと光線')(g, p), want: (g, p) => hasTarget(p.field.some((u) => u.name === 'おかがっぱ') ? 0 : 4000)(g, p) },
     138: { magic: async (g, p) => { g.draw(p, 1); if (p.hand[p.hand.length - 1]?.kind === 'magic') g.draw(p, 1); }, want: canDraw },
     139: { magic: async (g, p) => { p.lvDownTurn = g.turn; g.log('この ターンは 魔法の Lv が 1 下がる'); g.draw(p, 1); }, want: (g, p) => p.hand.filter((c) => c.kind === 'magic' && c.lv > p.lv).length > 0 },
     140: { onMagicScene: async (g, p) => { if (p.magicCount === 2) { g.log('竜宮城：2 枚目の 魔法で 1 枚 引く'); g.draw(p, 1); } }, want: (g, p) => p.hand.filter((c) => c.kind === 'magic').length >= 2 },
@@ -473,7 +473,7 @@ export const EFFECTS = {
     212: { itemPower: (g, u) => 1000 + (isOkaHibiki(u) && g.players[u.owner].magicCount > 0 && g.active === u.owner ? 2000 : 0) },
     213: { scene: (g, owner, u) => (u.owner === owner.id && (u.muscle || 0) > 0 ? 1000 : 0), want: (g, p) => p.field.some((u) => u.muscle) },
     214: {
-        magic: async (g, p) => { for (const u of p.field) u.mods.push({ amount: u.muscle ? 3000 : 2000, until: thisTurn(g) }); g.log('パンプアップ！'); },
+        magic: async (g, p) => { for (const u of p.field) u.mods.push({ amount: u.muscle ? 2000 : 1000, until: thisTurn(g) }); g.log('パンプアップ！'); },
         want: (g, p) => p.field.filter((u) => g.canAttack(u)).length >= 2
     },
     215: { attach: async (g, p, u) => g.addMuscle(u, 2) }

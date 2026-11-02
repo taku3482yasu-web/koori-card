@@ -214,7 +214,7 @@ test('カウンター: ハエトリグサーンを 攻撃すると いっしょ�
     assert.ok(!a.field.includes(atk2) && b.field.includes(wolf), '8000 に まけた');
 });
 
-test('5DX: ハリーメイジで 魔法の Lv が 1 下がり、おかがっぱは 魔法を 使うと +2000', async () => {
+test('5DX: ハリーメイジで 魔法の Lv が 1 下がり、おかがっぱは 魔法を 使うと +1000 (2026-11-03 に 弱めた)', async () => {
     const g = await fresh(15, ['5dx', 'koori']);
     const a = g.players[0];
     const magic = { ...cardByNo(136), uid: 9901 };   // 牛の角アタック Lv2
@@ -224,7 +224,7 @@ test('5DX: ハリーメイジで 魔法の Lv が 1 下がり、おかがっぱ�
     const oka = await put(g, a, 11, 9903);
     const pw = g.power(oka);
     await g.use(a, { ...cardByNo(24), uid: 9904 });
-    assert.equal(g.power(oka), pw + 2000);
+    assert.equal(g.power(oka), pw + 1000);
 });
 
 test('氷隊: ヒョウガメが こおりくんの かわりに やられる・コオリノカガミが かわりに 選ばれる', async () => {
