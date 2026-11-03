@@ -307,3 +307,58 @@ h2.sub { font-size: 16px; margin: 18px 0 8px; }
 .settings .row > span { min-width: 120px; font-weight: bold; }
 .settings .row .tabs { margin: 0; }
 .settings .danger .link { border-color: #a84a4a; color: #ffb0b0; }
+
+/* ---------- 使う カードを 大きく 見せる・レア度の 演出 (2026-11-03) ---------- */
+.reveal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; overflow: hidden; background: rgba(6, 10, 20, 0.62); animation: rvfade 0.18s ease-out; cursor: pointer; }
+.reveal.out { animation: rvout 0.18s ease-in forwards; }
+.reveal .rv-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px; }
+.reveal .rv-card { width: min(250px, 66vw); animation: rvpop 0.38s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+.reveal.opp .rv-card { animation-name: rvdrop; }
+.reveal .rv-card .card { font-size: 12px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+.reveal .who { margin: 0; padding: 4px 14px; border-radius: 999px; font-weight: 900; background: #2d6cdf; color: #fff; }
+.reveal.opp .who { background: #c83a4a; }
+.reveal .what { margin: 0; font-weight: 900; font-size: 18px; text-shadow: 0 2px 0 #000; text-align: center; }
+.reveal .rarelabel { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: 6px; line-height: 1; animation: rvlabel 0.5s ease-out both; }
+@keyframes rvfade { from { opacity: 0; } }
+@keyframes rvout { to { opacity: 0; transform: scale(1.04); } }
+@keyframes rvpop { from { transform: translateY(60px) scale(0.4) rotate(-8deg); opacity: 0; } }
+@keyframes rvdrop { from { transform: translateY(-60px) scale(0.4) rotate(8deg); opacity: 0; } }
+@keyframes rvlabel { from { transform: scale(2.4); opacity: 0; } }
+@keyframes rvspin { to { transform: rotate(360deg); } }
+@keyframes rvring { from { transform: scale(0.2); opacity: 1; } to { transform: scale(2.6); opacity: 0; } }
+@keyframes rvflash { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rvglow { 50% { box-shadow: 0 0 34px 10px var(--gl); } }
+@keyframes rvholo { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes rvshake { 10%, 30%, 50% { transform: translate(-6px, 3px); } 20%, 40% { transform: translate(6px, -3px); } 60% { transform: none; } }
+.reveal .rays { position: absolute; left: 50%; top: 50%; width: 160vmax; height: 160vmax; margin: -80vmax 0 0 -80vmax; opacity: 0.55; animation: rvspin 6s linear infinite; }
+.reveal .ring { position: absolute; left: 50%; top: 50%; width: 300px; height: 300px; margin: -150px 0 0 -150px; border-radius: 50%; border: 6px solid var(--rc, #fff); animation: rvring 1.1s ease-out both; }
+.reveal .ring.r2 { animation-delay: 0.35s; }
+.reveal .flash { position: absolute; inset: 0; background: #fff; animation: rvflash 0.45s ease-out both; pointer-events: none; }
+/* VR: むらさきに 光る */
+.reveal.r-VR { --gl: #b07aff; --rc: #b07aff; }
+.reveal.r-VR .rays, .reveal.r-VR .flash { display: none; }
+.reveal.r-VR .rv-card .card { animation: rvglow 0.9s ease-in-out infinite; }
+.reveal.r-VR .rarelabel { color: #d0b0ff; text-shadow: 0 0 12px #8a4ad8; }
+/* SR: 金色の 光の すじ */
+.reveal.r-SR { --gl: #ffd84a; --rc: #ffd84a; background: radial-gradient(circle, rgba(90, 64, 10, 0.9), rgba(6, 10, 20, 0.94)); }
+.reveal.r-SR .rays { background: repeating-conic-gradient(rgba(255, 216, 74, 0.5) 0 6deg, transparent 6deg 18deg); }
+.reveal.r-SR .flash { background: #fff2a8; }
+.reveal.r-SR .rv-card .card { animation: rvglow 0.8s ease-in-out infinite; }
+.reveal.r-SR .rarelabel { color: #ffd84a; text-shadow: 0 0 14px #e8b02a, 0 3px 0 #6a4a00; }
+/* HR: にじ色の すじ + ホロ */
+.reveal.r-HR { --gl: #ffffff; --rc: #bff0ff; background: radial-gradient(circle, rgba(40, 60, 90, 0.92), rgba(6, 10, 20, 0.95)); }
+.reveal.r-HR .rays { background: repeating-conic-gradient(rgba(255, 106, 138, 0.45) 0 5deg, rgba(255, 216, 74, 0.45) 5deg 10deg, rgba(106, 255, 200, 0.45) 10deg 15deg, rgba(122, 200, 255, 0.45) 15deg 20deg, transparent 20deg 30deg); animation-duration: 4s; }
+.reveal.r-HR .rv-card, .reveal.r-OR .rv-card { position: relative; }
+.reveal.r-HR .rv-card::after, .reveal.r-OR .rv-card::after { content: ""; position: absolute; inset: 0; border-radius: 10px; pointer-events: none; mix-blend-mode: screen; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.75) 45%, rgba(255, 140, 220, 0.5) 50%, rgba(120, 220, 255, 0.5) 55%, transparent 70%); background-size: 200% 100%; animation: rvholo 1.2s linear infinite; }
+.reveal.r-HR .rv-card .card { animation: rvglow 0.7s ease-in-out infinite; }
+.reveal.r-HR .rarelabel { background: linear-gradient(90deg, #ff6a8a, #ffd84a, #6affc8, #7ac8ff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 8px #fff); }
+/* OR: 画面が ゆれて にじの 光が うずまく・衝撃波 */
+.reveal.r-OR { --gl: #ffd84a; --rc: #ff6aa0; background: radial-gradient(circle, rgba(60, 10, 60, 0.85), rgba(0, 0, 0, 0.95)); }
+.reveal.r-OR .rays { opacity: 0.8; background: repeating-conic-gradient(#ff5a5a 0 4deg, #ffb84a 4deg 8deg, #fff24a 8deg 12deg, #5aff9a 12deg 16deg, #5ac8ff 16deg 20deg, #c86aff 20deg 24deg, transparent 24deg 36deg); animation-duration: 2.5s; }
+.reveal.r-OR .ring { border-width: 10px; }
+.reveal.r-OR .rv-in { animation: rvshake 0.6s 0.3s both; }
+.reveal.r-OR .rv-card { animation-duration: 0.6s; }
+.reveal.r-OR .rv-card::after { animation-duration: 0.9s; }
+.reveal.r-OR .rv-card .card { animation: rvglow 0.5s ease-in-out infinite; }
+.reveal.r-OR .rarelabel { font-size: 52px; background: linear-gradient(90deg, #ff5a5a, #ffb84a, #fff24a, #5aff9a, #5ac8ff, #c86aff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 10px #fff) drop-shadow(0 4px 0 #000); }
+@media (prefers-reduced-motion: reduce) { .reveal .rays, .reveal .ring, .reveal .rv-in, .reveal .rv-card::after { animation: none !important; } .reveal .ring { display: none; } }

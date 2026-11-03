@@ -134,7 +134,7 @@ async function main() {
     let shotDetail = false;
     let shotAsk = false;
     let dragged = false;
-    const seen = { arrow: false, crack: false, item: false, grave: false, scene: false, chance: false };
+    const seen = { arrow: false, crack: false, item: false, grave: false, scene: false, chance: false, reveal: false };
     while (steps++ < 600) {
         if (await js('!!document.querySelector(".result")')) break;
         if (await js('!!document.querySelector(".ask")')) {
@@ -147,6 +147,8 @@ async function main() {
         if (await js('!!document.querySelector(".arrow")')) seen.arrow = true;
         if (await js('!!document.querySelector(".mini.crack")')) seen.crack = true;
         // 場面を 出すと その 景色が 場の 背景に なる (2026-11-03)
+        // 使う カードは まんなかに 大きく 出る (2026-11-03)
+        if (!seen.reveal && await js('!!document.querySelector(".reveal .card")')) { seen.reveal = true; await snap('reveal'); }
         if (!seen.scene && await js('!!document.querySelector(".side.has-scene")')) { seen.scene = true; await snap('scene-bg'); }
         if (!seen.chance && await js('document.querySelector(".ask h2")?.textContent.includes("アタックチャンス")')) { seen.chance = true; await snap('attack-chance'); }
         // 墓地に カードが あれば 一覧を 開いて カードを 大きく 見る
@@ -219,6 +221,7 @@ async function main() {
     }
     console.log(`ブラウザのテスト: 演出 ${JSON.stringify(seen)}`);
     if (!seen.arrow) errors.push('こうげきの 矢印が 出なかった');
+    if (!seen.reveal) errors.push('使う カードが 大きく 出なかった');
     const result = await js('document.querySelector(".result h2")?.textContent');
     const turn = await js('document.querySelector(".turn")?.textContent');
     if (!result) errors.push(`決着しなかった (${turn})`);

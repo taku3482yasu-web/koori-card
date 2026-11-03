@@ -61,7 +61,6 @@ export function startBattle(root, myDeck, opts) {
         if (m.includes('シールドが 割れた')) sfx('break');
         else if (m.startsWith('⚡')) sfx('trigger');
         else if (m.startsWith('⚔')) sfx('chance');
-        else if (/を 出した|を 使った|に 付けた/.test(m)) sfx('card');
         log0(m);
     };
     if (online) {
@@ -95,6 +94,8 @@ export function startBattle(root, myDeck, opts) {
             await wait(650 * fxK);
             svg.remove();
             from.classList.remove('attacking');
+        } else if (ev.type === 'use') {
+            await reveal(ev);
         } else if (ev.type === 'destroy') {
             const el = elOf(ev.unit);
             if (!el) return;
@@ -104,6 +105,32 @@ export function startBattle(root, myDeck, opts) {
         }
     }
 
+
+    // 使う カードを まんなかに 大きく 見せてから 使う (2026-11-03 ユーザー指定: どちらにも わかるように)
+    //   レア度の 高い カード (VR・SR・HR・OR) は 専用の 演出。タップで とばせる
+    const RARE_MS = { VR: 1500, SR: 1900, HR: 2400, OR: 3200 };
+    async function reveal({ card, player, how }) {
+        const mine = player.id === ME;
+        const verb = card.kind === 'monster' ? 'を 出した' : card.kind === 'item' ? 'を 付ける' : card.kind === 'field' ? 'の 場面を 出した' : 'を 使った';
+        const head = how === 'trigger' ? '⚡ ドタバタトリガー！' : how === 'chance' ? '⚔ アタックチャンス！' : '';
+        const rare = RARE_MS[card.rarity] ? card.rarity : '';
+        const el = document.createElement('div');
+        el.className = `reveal ${mine ? 'mine' : 'opp'} ${rare ? `r-${rare}` : ''}`;
+        el.innerHTML = `${rare ? '<div class="rays"></div><div class="ring"></div><div class="ring r2"></div><div class="flash"></div>' : ''}
+<div class="rv-in">
+    <p class="who">${esc(player.name)}${head ? `　${head}` : ''}</p>
+    ${rare ? `<p class="rarelabel">${rare}</p>` : ''}
+    <div class="rv-card">${cardHTML(card)}</div>
+    <p class="what">${esc(card.name)} ${verb}</p>
+</div>`;
+        document.body.append(el);
+        sfx(rare === 'OR' || rare === 'HR' ? 'legend' : rare ? 'rare' : 'card');
+        const ms = Math.max(400, (RARE_MS[rare] || 1150) * fxK);
+        await new Promise((r) => { const t = setTimeout(r, ms); el.onclick = () => { clearTimeout(t); r(); }; });
+        el.classList.add('out');
+        await wait(180);
+        el.remove();
+    }
 
     async function run(fn) {
         busy = true;

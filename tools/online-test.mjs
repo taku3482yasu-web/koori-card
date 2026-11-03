@@ -57,6 +57,9 @@ async function page(name, wsUrl) {
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await send('Page.navigate', { url });
     await sleep(800);
+    // 演出を はやく して テストを みじかく
+    await js(`localStorage.setItem('koori-card-settings', JSON.stringify({ name: '${name}', fxSpeed: 'fast', cpuSpeed: 'fast' })); location.reload(); true`);
+    await sleep(800);
     return { js, click, snap, close: () => ws.close() };
 }
 

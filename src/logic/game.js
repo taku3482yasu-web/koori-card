@@ -259,6 +259,7 @@ export class Game {
             if (from === 'buddy') p.buddy = null;
             else p.hand.splice(p.hand.indexOf(card), 1);
             if (card.kind === 'monster') p.summoned = true;
+            await this.fx({ type: 'use', card, player: p, how: 'play' });   // 使う カードを 大きく 見せる (2026-11-03)
             if (card.kind === 'monster' && effectOf(card.no).evolveFrom) {
                 const bases = this.evolveBases(p, card);
                 const base = await this.ask(p, { title: `${card.name} に 進化させる モンスターを えらんでね`, options: bases.map((u) => ({ label: u.name, value: u, card: u, score: this.power(u) })) });
@@ -272,6 +273,7 @@ export class Game {
     // 手札などから 出た カードを 解決する (trigger: シールドから タダで)
     async use(p, card, { trigger = false } = {}) {
         const head = trigger ? `⚡ ドタバタトリガー！ ${p.name} は` : `${p.name} は`;
+        if (trigger) await this.fx({ type: 'use', card, player: p, how: 'trigger' });
         if (card.kind === 'monster' && effectOf(card.no).evolveFrom) {
             // トリガーで 来た 進化の カードは、もとが いれば 進化・いなければ 手札へ
             const bases = this.evolveBases(p, card);
@@ -513,6 +515,7 @@ export class Game {
         });
         if (!c) return;
         p.hand.splice(p.hand.indexOf(c), 1);
+        await this.fx({ type: 'use', card: c, player: p, how: 'chance' });
         this.log(`⚔ アタックチャンス！ ${p.name} は 魔法「${c.name}」を ただで 使った`);
         await this.castFree(p, c);
         await this.sweepZero();
