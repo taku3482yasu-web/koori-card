@@ -60,6 +60,7 @@ export class Game {
         this.first = opts.first ?? (rand() < 0.5 ? 0 : 1);
         this.active = this.first;
         this.turn = 0;
+        this.phase = 'main';
         this.winner = null;
         this.reason = '';
         this.logs = [];
@@ -129,10 +130,10 @@ export class Game {
     // 【進化】の もとに できる 自分の モンスター
     evolveBases(p, card) {
         const from = effectOf(card.no).evolveFrom;
-        return from ? p.field.filter(from) : [];
+        return from ? p.field.filter((u) => from(u) && u.power < card.power) : [];   // 進化は もとの パワーより 強く なる ときだけ
     }
     canPlay(p, card) {
-        if (this.winner !== null || this.active !== p.id) return false;
+        if (this.winner !== null || this.active !== p.id || this.phase !== 'main') return false;
         if (this.needLv(p, card) > p.lv) return false;
         if (card.kind === 'monster' && effectOf(card.no).evolveFrom) return !p.summoned && this.evolveBases(p, card).length > 0;
         if (card.kind === 'monster') return !p.summoned && p.field.length < this.slots(p);
@@ -140,6 +141,7 @@ export class Game {
         return true;
     }
     whyNot(p, card) {
+        if (this.phase !== 'main') return 'アタックフェイズに なったので カードは 使えない（メインフェイズだけ）';
         if (this.needLv(p, card) > p.lv) return `Lv${this.needLv(p, card)} から（いまは Lv${p.lv}）`;
         if (card.kind === 'monster' && p.summoned) return 'モンスターは 1 ターンに 1 体まで';
         if (card.kind === 'monster' && effectOf(card.no).evolveFrom) return '進化の もとに なる モンスターが 場に いない';
@@ -218,6 +220,7 @@ export class Game {
         const p = this.players[this.active];
         p.summoned = false;
         p.magicCount = 0;
+        this.phase = 'main';   // カードを 使えるのは 引いたあとの メインフェイズだけ。はじめて 攻撃したら アタックフェイズ (2026-11-03)
         for (const u of p.field) { u.attacks = 0; if (u.lockUntap !== this.turn) u.tapped = false; }   // 自分の ターンの はじめに アンタップ (ムゲンループは しない)
         this.log(`── ${this.turn} ターン目：${p.name} ──`);
         if (this.turn > 1) this.draw(p);
@@ -454,6 +457,7 @@ export class Game {
         const p = this.players[u.owner];
         const o = this.opp(p);
         try {
+            this.phase = 'attack';
             u.attacks++;
             u.tapped = true;   // 攻撃したら タップ (次の 自分の ターンまで ブロックできない)
             let atkBonus = 0;
@@ -461,6 +465,7 @@ export class Game {
             if (u.item) await effectOf(u.item.no).itemAttack?.(this, p, u);
             for (const s of [...p.field]) if (s !== u) atkBonus += (await effectOf(s.no).allyAttack?.(this, p, s, u)) || 0;
             if (p.scene) await effectOf(p.scene.no).sceneAttack?.(this, p, u);
+            await this.attackChance(p, u);
             if (!p.field.includes(u)) { this.onChange(); return true; }
             if (target !== 'shield' && !o.field.includes(target)) target = 'shield';
             const noBlock = (u.item && effectOf(u.item.no).unblockable) || effectOf(u.no).unblockable?.(this, u);
@@ -483,6 +488,31 @@ export class Game {
         } catch (e) { if (!(e instanceof GameOver)) throw e; }
         this.onChange();
         return true;
+    }
+
+    // アタックチャンス: u の 攻撃で 条件に 合う 手札の 魔法を ただで (Lv に 関係なく) 1 枚 使える (2026-11-03)
+    chances(p, u) { return p.hand.filter((c) => effectOf(c.no).attackChance?.(this, u)); }
+    async attackChance(p, u) {
+        if (!p.field.includes(u)) return;
+        const list = this.chances(p, u);
+        if (!list.length) return;
+        const c = await this.ask(p, {
+            title: `⚔ アタックチャンス！ ${u.name} の 攻撃で ただで 使える`,
+            options: list.map((x) => ({ label: x.name, value: x, card: x, score: effectOf(x.no).want?.(this, p) ? 1 : 0 })),
+            cancel: '使わない', cancelScore: 0.5
+        });
+        if (!c) return;
+        p.hand.splice(p.hand.indexOf(c), 1);
+        this.log(`⚔ アタックチャンス！ ${p.name} は 魔法「${c.name}」を ただで 使った`);
+        await this.castFree(p, c);
+        await this.sweepZero();
+        this.onChange();
+    }
+    // 効果で バトルさせる (ブロックなし。a が 攻撃する がわ)
+    async fight(p, a, d) {
+        const o = this.players[d.owner];
+        if (!p.field.includes(a) || !o.field.includes(d)) return;
+        await this.battle(p, o, a, d, { isBlock: false, atkBonus: 0 });
     }
 
     // モンスターどうしの バトル (攻撃した u と うけた d)

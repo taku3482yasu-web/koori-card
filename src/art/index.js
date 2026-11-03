@@ -8,10 +8,13 @@
 import { LEGACY_ART } from './legacy-art.js';
 import { NEW_ART } from './new-art.js';
 import { SCENES, paintScene } from './scenes.js';
+import { COMBOS } from './combos.js';
+import { paintCombo } from './combo-paint.js';
 
 export const ART = { ...LEGACY_ART, ...NEW_ART };
 
-export const CARD_ART = {
+// もとの 絵 (同じ 絵を 使う カードは COMBOS で 組み合わせの 絵に かわる。tools/make-combos.mjs)
+export const BASE_ART = {
     // 氷隊の モンスター
     1: 'sprite:koori', 2: 'big:yukiusapon', 3: 'big:kakigoora', 4: 'big:tsurarabo', 5: 'big:shirokumatcho', 6: 'big:yukionnan',
     7: 'big:hyougaryu', 8: 'big:penguinknight', 9: 'big:kogame', 10: 'big:urashima', 11: 'big:okagappa', 12: 'big:nakata',
@@ -74,6 +77,13 @@ export const CARD_ART = {
     391: 'big:onigirin', 392: 'sprite:furukawa', 393: 'item:omamori', 394: 'big:harigeneral', 395: 'big:fukinoton', 396: 'sprite:tomoishi',
     397: 'item:power_band', 398: 'big:haridora', 399: 'sprite:furukawa', 400: 'sprite:tomoishi', 401: 'big:metalharry', 402: 'big:metalkingharry'
 };
+
+// 全カードで 絵が ダブらない ように (2026-11-03 ユーザー指定): 組み合わせの 絵を SCENES に 足して 使う
+export const CARD_ART = { ...BASE_ART };
+for (const [no, spec] of Object.entries(COMBOS)) {
+    SCENES[`combo:${no}`] = (p) => paintCombo(p, spec);
+    CARD_ART[no] = `combo:${no}`;
+}
 
 const cache = new Map();
 

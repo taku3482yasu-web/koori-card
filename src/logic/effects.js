@@ -15,6 +15,7 @@
 //     unblockable アイテム: ブロックされない / extraBreaks アイテム: 割る 枚数を ふやす / grantHaste アイテム: 速攻
 //   パック: magicImmune 相手の 魔法で 選ばれない / allBlockers 味方 ぜんぶ ブロッカー / anyBlockWin 味方が ブロックで 勝つたび /
 //     sceneAttack 場面: 攻撃するとき / unblockable(g, u) 条件つきで ブロックされない / block が { killAttacker } を 返すと バトルせず 攻撃側を 墓地へ
+//   attackChance(g, u): アタックチャンス (自分の u が 攻撃するとき ただで 使える 魔法)
 //   want(g, p): CPU が 使いたいか (魔法・場面・アイテム)
 // 「〇〇の モンスター」は 右上の エンブレム (team)。「こおりくん」「おにおに」は 名前が そう はじまる カード
 // =====================================================================
@@ -64,6 +65,48 @@ const pumpOne = (amount) => async (g, p) => {
     const u = await pickOwn(g, p, `パワー +${amount} する モンスターを えらんでね`);
     if (u) { u.mods.push({ amount, until: thisTurn(g) }); g.log(`${u.name} の パワーが この ターン +${amount}`); }
 };
+// モンスター 1 体 (自分か 相手) を タップ か アンタップ (2026-11-03: カードは メインフェイズだけなので「アンタップ」だけの 効果を 直した)
+//   CPU は 相手の アンタップの ブロッカー → 相手の 強い モンスターを タップ、自分の タップした モンスターを アンタップ
+const tapOrUntap = (why, { magic = false, pump = 0 } = {}) => async (g, p) => {
+    const o = g.opp(p);
+    const opts = [];
+    for (const u of [...p.field, ...o.field]) {
+        if (magic && u.owner !== p.id && effectOf(u.no).magicImmune) continue;
+        const mine = u.owner === p.id;
+        const score = mine ? (u.tapped ? 2 : 0) : (u.tapped ? -1 : 1 + (g.isBlocker(u) ? 1 : 0) + g.power(u) / 100000);
+        opts.push({ label: `${u.name} を ${u.tapped ? 'アンタップ' : 'タップ'}`, value: u, card: u, score });
+    }
+    if (!opts.length) return;
+    const u = await g.ask(p, { title: `${why}：タップ か アンタップ する モンスターを えらんでね`, options: opts, cancel: 'しない', cancelScore: 0.5 });
+    if (!u) return;
+    if (u.tapped) { u.tapped = false; g.log(`${u.name} を アンタップした`); } else g.tap(u);
+    if (pump && u.owner === p.id) { u.mods.push({ amount: pump, until: g.turn + 1, oppTurnOnly: true }); g.log(`${u.name} は 次の 相手の ターン パワー +${pump}`); }
+};
+// 手札から モンスターを ただで 出す (アタックチャンス。Lv・1 ターン 1 体の 決まりに 関係なく。進化は のぞく)
+async function summonFree(g, p, filter, why) {
+    if (p.field.length >= g.slots(p)) return g.log(`${why}：場が いっぱい`), null;
+    const list = p.hand.filter((c) => c.kind === 'monster' && !effectOf(c.no).evolveFrom && filter(c));
+    if (!list.length) return g.log(`${why}：出せる モンスターが 手札に ない`), null;
+    const c = await g.ask(p, { title: `${why}：ただで 出す モンスターを えらんでね`, options: list.map((x) => ({ label: `${x.name}（${x.power}）`, value: x, card: x, score: x.power + x.lv * 1000 })) });
+    p.hand.splice(p.hand.indexOf(c), 1);
+    g.log(`${p.name} は ${c.name} を ただで 出した！`);
+    return g.enter(p, c);
+}
+// 自分の モンスター 1 体と 相手の モンスター 1 体を バトルさせる (アタックチャンス)
+async function fightOne(g, p, why, { but = null, tapFirst = false } = {}) {
+    const o = g.opp(p);
+    let e = null;
+    if (tapFirst) {
+        e = await g.pickEnemy(p, `${why}：タップする 相手を えらんでね`, () => true, { magic: true });
+        if (e) g.tap(e);
+    }
+    const mine = p.field.filter((u) => u !== but && !u.tapped);
+    const enemy = e ? [e] : o.field.filter((u) => !(effectOf(u.no).magicImmune));
+    if (!mine.length || !enemy.length) return g.log(`${why}：バトルできる モンスターが いない`);
+    const a = await g.ask(p, { title: `${why}：バトルする 自分の モンスターを えらんでね`, options: mine.map((u) => ({ label: `${u.name}（${g.power(u)}）`, value: u, card: u, score: g.power(u) })) });
+    const d = e || await g.ask(p, { title: `${why}：バトルする 相手を えらんでね`, options: enemy.map((u) => ({ label: `${u.name}（${g.power(u)}）`, value: u, card: u, score: (g.power(u) < g.power(a) ? 10 : 0) + g.power(u) / 10000 })) });
+    await g.fight(p, a, d);
+}
 const fromGrave = (p, filter) => p.grave.filter(filter);
 async function graveToHand(g, p, filter, title) {
     const list = fromGrave(p, filter);
@@ -233,7 +276,7 @@ export const EFFECTS = {
             g.log(`${p.name} は ${c.name} を 手札に くわえた`);
         }
     },
-    74: { enter: async (g, p) => { const u = await pickOwn(g, p, 'アンタップする モンスターを えらんでね', (x) => x.tapped); if (u) { u.tapped = false; g.log(`${u.name} を アンタップした`); } } },
+    74: { enter: tapOrUntap('ヤタイマン') },
     75: { blocker: true },
     76: {
         enter: async (g, p) => {
@@ -439,8 +482,8 @@ export const EFFECTS = {
     189: { magic: killOne(3000, '獣道のわな'), want: hasTarget(3000) },
     190: { scene: (g, owner, u) => (u.owner === owner.id && g.isBlocker(u) ? 2000 : 0), want: (g, p) => p.field.filter((u) => g.isBlocker(u)).length >= 2 },
     191: {
-        magic: async (g, p) => { for (const u of p.field) { u.tapped = false; u.mods.push({ amount: 2000, until: g.turn + 1, oppTurnOnly: true }); } g.log('迷宮の待ちぶせ！ 自分の モンスターを アンタップ'); },
-        want: (g, p) => p.field.filter((u) => u.tapped).length >= 2
+        magic: async (g, p) => { for (const e of g.opp(p).field) if (!e.tapped && !effectOf(e.no).magicImmune) g.tap(e); g.log('迷宮の待ちぶせ！ 相手の モンスターを すべて タップ'); },
+        want: (g, p) => g.opp(p).field.filter((u) => !u.tapped && g.isBlocker(u)).length >= 1 && p.field.some((u) => g.canAttack(u))
     },
     192: { magic: weaken(3000, 'しっぺ返し', untilMyNextEnd), want: strongEnemy },
     193: { blockPower: 3000 },
@@ -454,7 +497,7 @@ export const EFFECTS = {
     202: { itemAttack: async (g, p) => destroyItem(g, p, '盗みのハサミ') },
     203: { attacked: async (g, p) => { await bounceOne('タツマキツネ', false)(g, p); return null; } },
     204: { blocker: true, block: async (g, p) => { g.draw(p, 1); } },
-    205: { enter: async (g, p) => { const u = await pickOwn(g, p, 'アンタップする モンスターを えらんでね', (x) => x.tapped); if (u) { u.tapped = false; g.log(`${u.name} を アンタップした`); } } },
+    205: { enter: tapOne('ヨアケフクロウ', false) },
     206: {
         magic: async (g, p) => { for (const u of p.field.filter((x) => g.isBlocker(x))) u.mods.push({ amount: 2000, until: g.turn + 1, oppTurnOnly: true }); g.log('野生のさけび！ ブロッカーが 強く なった'); },
         want: (g, p) => p.field.filter((u) => g.isBlocker(u)).length >= 2
@@ -479,6 +522,36 @@ export const EFFECTS = {
         want: (g, p) => p.field.filter((u) => g.canAttack(u)).length >= 2
     },
     215: { attach: async (g, p, u) => g.addMuscle(u, 2) },
+    // ===================== アタックチャンス (2026-11-03 ユーザー指定) =====================
+    // attackChance(g, u): u が 攻撃するとき ただで 使えるか。メインフェイズでは ふつうに Lv3 の 魔法として 使える
+    216: { attackChance: (g, u) => u.team === 'bariki', magic: async (g, p) => summonFree(g, p, (c) => c.team === 'bariki', 'ばりきつよめ総攻撃'), want: (g, p) => p.hand.some((c) => c.kind === 'monster' && c.team === 'bariki' && c.lv >= 2) },
+    217: { attackChance: (g, u) => isKoori(u), magic: async (g, p) => summonFree(g, p, (c) => c.team === 'koori' && c.lv <= 2, '氷隊、緊急出動！'), want: (g, p) => p.hand.some((c) => c.kind === 'monster' && c.team === 'koori' && c.lv === 2) },
+    218: { attackChance: (g, u) => isOni(u), magic: async (g, p) => fightOne(g, p, '鬼の大暴れ'), want: (g, p) => p.field.some((u) => !u.tapped && g.opp(p).field.some((e) => g.power(e) < g.power(u))) },
+    219: {
+        attackChance: (g, u) => u.team === 'ask3',
+        magic: async (g, p) => { const u = await summonFree(g, p, (c) => c.team === 'ask3', '緊急残業命令'); if (u) { u.haste = true; g.log(`${u.name} は この ターン 速攻`); } },
+        want: (g, p) => p.hand.some((c) => c.kind === 'monster' && c.team === 'ask3' && c.lv >= 2)
+    },
+    220: {
+        attackChance: (g, u) => isOkaHibiki(u) || u.name.startsWith('おかがっぱ') || u.name.startsWith('ひびきまくり'),
+        magic: async (g, p) => {
+            const list = fromGrave(p, (c) => c.kind === 'magic' && !EFFECTS[c.no]?.attackChance);
+            if (!list.length) return g.log('アンコール！：墓地に 魔法が ない');
+            const c = await g.ask(p, { title: 'アンコール！：墓地から 使う 魔法を えらんでね', options: list.map((x) => ({ label: x.name, value: x, card: x, score: (EFFECTS[x.no]?.want?.(g, p) ? 10 : 0) + x.lv })) });
+            p.grave.splice(p.grave.indexOf(c), 1);
+            await g.castFree(p, c);
+        },
+        want: (g, p) => fromGrave(p, (c) => c.kind === 'magic' && c.lv >= 2).length > 0
+    },
+    221: {
+        attackChance: (g, u) => (u.muscle || 0) > 0,
+        magic: async (g, p) => { const u = await summonFree(g, p, () => true, 'マッスル乱入'); if (u) g.addMuscle(u, 1); },
+        want: (g, p) => p.hand.some((c) => c.kind === 'monster' && c.lv >= 2)
+    },
+    222: { attackChance: (g, u) => u.team === 'bartas', magic: async (g, p) => fightOne(g, p, '怪盗の早業', { tapFirst: true }), want: (g, p) => p.field.some((u) => !u.tapped && g.opp(p).field.some((e) => g.power(e) < g.power(u))) },
+    223: { attackChance: (g, u) => u.team === 'kemono', magic: async (g, p) => summonFree(g, p, (c) => g.isBlocker(c), '獣道の伏兵'), want: (g, p) => p.hand.some((c) => c.kind === 'monster' && c.lv >= 2 && g.isBlocker(c)) },
+    224: { attackChance: () => true, magic: async (g, p) => summonFree(g, p, (c) => c.lv === 1, '助っ人コール'), want: () => false },
+    225: { attackChance: (g, u) => g.power(u) >= 6000, magic: async (g, p) => fightOne(g, p, '真剣勝負'), want: (g, p) => p.field.some((u) => !u.tapped && g.opp(p).field.some((e) => g.power(e) < g.power(u))) },
     // ===================== パック 第 1 弾 (docs/pack1.md。2026-11-03) =====================
     // ----- ばりきつよめ -----
     301: { enter: async (g, p, u) => { if (team(p, 'bariki', u).length) g.draw(p, 1); } },
@@ -508,49 +581,49 @@ export const EFFECTS = {
         }
     },
     // ----- 氷隊 -----
-    312: { enter: async (g, p, u) => { if (p.field.some((x) => x !== u && isKoori(x))) await tapOne('ツララコウモリ', false)(g, p); } },
-    313: { power: (g, u) => (g.players[u.owner].field.some(isKoori) ? 1000 : 0) },
+    312: { enter: async (g, p, u) => { await tapOne('ツララコウモリ', false)(g, p); if (p.field.some((x) => x !== u && isKoori(x))) g.draw(p, 1); } },
+    313: { blocker: true, power: (g, u) => (g.players[u.owner].field.some(isKoori) ? 1000 : 0) },
     314: {
         magic: async (g, p) => {
+            g.draw(p, 1);
             const u = await pickOwn(g, p, 'ひんやりサポート：パワー +3000 する こおりくんを えらんでね', isKoori);
-            if (u) { u.mods.push({ amount: 3000, until: thisTurn(g) }); g.log(`${u.name} の パワーが この ターン +3000`); } else g.draw(p, 1);
+            if (u) { u.mods.push({ amount: 3000, until: thisTurn(g) }); g.log(`${u.name} の パワーが この ターン +3000`); }
         },
         want: (g, p) => p.field.some((u) => isKoori(u) && g.canAttack(u)) || canDraw(g, p)
     },
     315: { blocker: true, destroyed: async (g, p) => search(g, p, isKoori, '山札から 手札に 加える こおりくんを えらんでね') },
-    316: { itemPower: () => 1000, guard: (g, u) => isKoori(u) },
+    316: { itemPower: () => 2000, guard: (g, u) => isKoori(u) },
     317: {
+        blocker: true,
         enter: async (g, p) => {
-            const u = await pickOwn(g, p, 'アンタップして パワー +2000 する こおりくんを えらんでね', isKoori);
-            if (!u) return;
-            u.tapped = false;
-            u.mods.push({ amount: 2000, until: thisTurn(g) });
-            g.log(`${u.name} を アンタップ・パワー +2000`);
+            await tapOne('コオリモドキ・真', false)(g, p);
+            for (const u of p.field.filter(isKoori)) u.mods.push({ amount: 2000, until: thisTurn(g) });
+            if (p.field.some(isKoori)) g.log('こおりくんの パワーが この ターン +2000');
         }
     },
     318: { scene: (g, owner, u) => (u.owner === owner.id && isKoori(u) ? 2000 : 0), want: (g, p) => [...p.field, ...p.hand].some(isKoori) },
     319: { magic: async (g, p) => killOne(p.field.some(isKoori) ? 7000 : 5000, 'コオリソード・極')(g, p), want: (g, p) => hasTarget(p.field.some(isKoori) ? 7000 : 5000)(g, p) },
     320: { blocker: true, enter: draw(2), aura: (g, src, u) => (u.owner === src.owner && isKoori(u) ? 1000 : 0) },
     321: { evolveFrom: isKoori, breaks: 2, enter: killOne(0, '絶対殺すソード', false) },
-    322: { evolveFrom: isKoori, breaks: 2, attack: async (g, p) => { g.log('絶対殺すソード・レクイエム！'); await killAll(5000, 'レクイエム')(g, p); } },
+    322: { evolveFrom: isKoori, breaks: 2, attack: async (g, p) => { g.log('絶対殺すソード・レクイエム！'); await killAll(6000, 'レクイエム')(g, p); } },
     // ----- 鬼鬼団 -----
     323: { destroyed: async (g, p) => g.draw(p, 1) },
     324: { blocker: (g, u) => g.players[u.owner].field.some(isOni) },
-    325: { magic: async (g, p) => { if (!(await search(g, p, (c) => c.name.includes('おにおに'), '山札から 手札に 加える「おにおに」を えらんでね'))) g.log('おにおにが 山札に いない'); }, want: (g, p) => p.deck.some((c) => c.name.includes('おにおに')) && p.hand.length <= 6 },
-    326: { attack: async (g, p, u) => { if (p.field.some((x) => x !== u && isOni(x))) await killOne(2000, 'エンジョウボウズ', false)(g, p); } },
-    327: { itemPower: (g, u) => (isOni(u) ? 2000 : 1000), guard: (g, u) => isOni(u) },
+    325: { magic: async (g, p) => { if (!(await search(g, p, (c) => c.name.includes('おにおに'), '山札から 手札に 加える「おにおに」を えらんでね'))) g.log('おにおにが 山札に いない'); g.draw(p, 1); }, want: (g, p) => p.deck.length > 6 && p.hand.length <= 6 },
+    326: { attack: async (g, p, u) => { if (p.field.some((x) => x !== u && isOni(x))) await killOne(3000, 'エンジョウボウズ', false)(g, p); } },
+    327: { itemPower: (g, u) => (isOni(u) ? 3000 : 1000), guard: (g, u) => isOni(u) },
     328: { aura: (g, src, u) => (u.owner === src.owner && isOni(u) ? 1000 : 0) },
     329: { sceneAttack: async (g, p, u) => { if (isOni(u)) await g.discard(g.opp(p), 1, '鬼鬼団のアジト：捨てる カード'); }, want: (g, p) => [...p.field, ...p.hand].some(isOni) },
     330: {
         magic: async (g, p) => { await EFFECTS[102].magic(g, p); g.draw(p, 1); },
         want: (g, p) => EFFECTS[102].want(g, p)
     },
-    331: { evolveFrom: (u) => u.name.startsWith('おにおに（'), haste: true, enter: killOne(3000, '紅蓮', false) },
+    331: { evolveFrom: isOni, haste: true, enter: async (g, p) => { await killOne(4000, '紅蓮', false)(g, p); g.draw(p, 1); } },
     332: {
-        evolveFrom: (u) => u.name.startsWith('おにおに（'), breaks: 2,
+        evolveFrom: isOni, breaks: 2,
         attack: async (g, p) => { for (const e of g.opp(p).field.filter((x) => x.item)) g.dropItem(e, '金棒くだき'); }
     },
-    333: { evolveFrom: (u) => u.name.startsWith('おにおに・鬼神'), breaks: 3, enter: async (g, p) => { g.log('鬼の王 覚醒！'); await killAll(6000, '鬼の王 覚醒')(g, p); } },
+    333: { evolveFrom: isOni, breaks: 3, enter: async (g, p) => { g.log('鬼の王 覚醒！'); await killAll(6000, '鬼の王 覚醒')(g, p); } },
     // ----- ASK-3 -----
     334: {
         enter: async (g, p) => {
@@ -569,7 +642,10 @@ export const EFFECTS = {
     339: { enter: async (g, p) => { await peekDiscard(g, p); g.draw(p, 1); } },
     340: { scene: (g, owner, u) => (u.owner === owner.id && owner.shields.length <= 2 ? 3000 : 0), want: (g, p) => p.shields.length <= 3 && p.field.length >= 1 },
     341: { haste: true, enter: async (g, p) => { for (const e of g.opp(p).field) if (!e.tapped) g.tap(e); g.log('完全計算！ 相手の モンスターを すべて タップ'); } },
-    342: { magic: async (g, p) => g.breakShields(g.opp(p), p.shields.length <= 2 ? 3 : 2), want: (g, p) => g.opp(p).shields.length > 0 },
+    342: {
+        magic: async (g, p) => { await killOne(6000, 'DOPAPANCHI・改')(g, p); if (p.shields.length <= 2) await g.breakShields(g.opp(p), 2); },
+        want: (g, p) => hasTarget(6000)(g, p) || (p.shields.length <= 2 && g.opp(p).shields.length > 0)
+    },
     343: { breaks: 3, unblockable: (g, u) => g.players[u.owner].shields.length <= 3 },
     344: {
         magic: async (g, p) => {
@@ -580,10 +656,10 @@ export const EFFECTS = {
     },
     // ----- 5DX -----
     345: { enter: async (g, p) => { if (g.active === p.id && p.magicCount > 0) g.draw(p, 1); } },
-    346: { blocker: true },
-    347: { magic: async (g, p) => g.draw(p, p.field.some((u) => u.name.startsWith('おかがっぱ')) ? 2 : 1), want: canDraw },
+    346: { blocker: true, power: (g, u) => (g.active !== u.owner ? 1000 : 0) },
+    347: { magic: async (g, p) => g.draw(p, p.field.some((u) => u.name.startsWith('おかがっぱ') || u.name.startsWith('ひびきまくり')) ? 2 : 1), want: canDraw },
     348: { enter: async (g, p) => graveToHand(g, p, (c) => c.kind === 'magic', '墓地から 手札に 戻す 魔法を えらんでね') },
-    349: { itemPower: (g, u) => 1000 + (g.active === u.owner && g.players[u.owner].magicCount > 0 ? 2000 : 0) },
+    349: { itemPower: (g, u) => 2000 + (g.active === u.owner && g.players[u.owner].magicCount > 0 ? 2000 : 0) },
     350: { blocker: true, breaks: (g, u) => (g.players[u.owner].field.some((x) => x.name.startsWith('おかがっぱ') || x.name.startsWith('ひびきまくり')) ? 2 : 1) },
     351: { onMagicScene: async (g, p) => { if (p.liveTurn === g.turn) return; p.liveTurn = g.turn; g.log('ライブハウス：1 枚 引く'); g.draw(p, 1); }, want: (g, p) => p.hand.some((c) => c.kind === 'magic') },
     352: {
@@ -596,7 +672,7 @@ export const EFFECTS = {
     },
     353: {
         power: (g, u, ctx) => (ctx.attacking ? 2000 : 0),
-        onMagic: async (g, p, u) => { if (u.echoTurn === g.turn) return; u.echoTurn = g.turn; await killOne(3000, 'おかピポMAX', false)(g, p); }
+        onMagic: async (g, p, u) => { if (u.echoTurn === g.turn) return; u.echoTurn = g.turn; await killOne(4000, 'おかピポMAX', false)(g, p); }
     },
     354: {
         magicLvDown: true,
@@ -620,7 +696,7 @@ export const EFFECTS = {
     359: { blocker: true, enter: muscleOne(1) },
     360: { attach: async (g, p, u) => g.addMuscle(u, 1), itemDestroyed: async (g, p) => g.draw(p, 1) },
     361: { winBattle: async (g, p, u) => { const o = g.opp(p); if (o.shields.length) { g.log('バルクアップ！'); await g.breakShields(o, 1); } if (p.field.includes(u)) g.addMuscle(u, 1); } },
-    362: { scene: (g, owner, u) => (u.owner === owner.id && (u.muscle || 0) > 0 && g.active !== owner.id ? 2000 : 0), want: (g, p) => p.field.some((u) => u.muscle) },
+    362: { scene: (g, owner, u) => (u.owner === owner.id && (u.muscle || 0) > 0 ? 1000 + (g.active !== owner.id ? 2000 : 0) : 0), want: (g, p) => p.field.some((u) => u.muscle) },
     363: {
         magic: async (g, p) => {
             const a = await pickOwn(g, p, '合体ポーズ：筋肉 +1 する モンスターを えらんでね（1 体め）');
@@ -637,9 +713,9 @@ export const EFFECTS = {
     // ----- バータス -----
     367: { power: (g, u) => (g.opp(g.players[u.owner]).hand.length > g.players[u.owner].hand.length ? 1000 : 0) },
     368: { enter: tapOne('カミナリグモ', false) },
-    369: { magic: async (g, p) => g.discardRandom(g.opp(p), 'すりかえ'), want: (g, p) => g.opp(p).hand.length > 0 },
-    370: { enter: peekDiscard },
-    371: { itemAttack: async (g, p) => g.discardRandom(g.opp(p), '怪盗のマント') },
+    369: { magic: async (g, p) => { await g.discardRandom(g.opp(p), 'すりかえ'); g.draw(p, 1); }, want: (g, p) => g.opp(p).hand.length > 0 || canDraw(g, p) },
+    370: { enter: async (g, p) => { await peekDiscard(g, p); g.draw(p, 1); } },
+    371: { itemPower: () => 1000, itemAttack: async (g, p) => g.discardRandom(g.opp(p), '怪盗のマント') },
     372: {
         enter: async (g, p) => {
             const o = g.opp(p);
@@ -650,39 +726,30 @@ export const EFFECTS = {
             await g.discard(o, 1, 'ねこまっしぐら：捨てる カード');
         }
     },
-    373: { scene: (g, owner, u) => (u.owner === owner.id && g.opp(owner).hand.length <= 3 ? 2000 : 0), want: (g, p) => p.field.length >= 1 },
+    373: { scene: (g, owner, u) => (u.owner === owner.id && g.opp(owner).hand.length <= 2 ? 2000 : 0), want: (g, p) => p.field.length >= 1 },
     374: {
         magic: async (g, p) => { for (const e of g.opp(p).field.filter((x) => x.item)) g.dropItem(e, 'ぜんぶいただき'); await g.discard(g.opp(p), 1, 'ぜんぶいただき：捨てる カード'); },
         want: (g, p) => g.opp(p).field.some((u) => u.item) || g.opp(p).hand.length > 0
     },
     375: { haste: true, attack: async (g, p) => { await tapOne('ハサミの舞', false)(g, p); await tapOne('ハサミの舞', false)(g, p); } },
-    376: { enter: async (g, p) => { await peekDiscard(g, p); await peekDiscard(g, p); } },
+    376: { breaks: 2, enter: async (g, p) => { await peekDiscard(g, p); await peekDiscard(g, p); g.draw(p, 1); } },
     377: {
         enter: async (g, p) => {
             if (p.field.length >= g.slots(p)) return;
-            const t = await g.pickEnemy(p, '怪盗団：うばう 相手の モンスターを えらんでね');
+            const t = await g.pickEnemy(p, '怪盗団：うばう 相手の モンスターを えらんでね', (u) => g.power(u) <= 7000);
             if (t) g.steal(t, p);
         }
     },
     // ----- ケモノミチ -----
     378: { blocker: true, block: async () => ({ def: 2000, log: 'オバケカボチャ：パワー +2000' }) },
-    379: { blocker: true },
-    380: {
-        magic: async (g, p) => {
-            const u = await pickOwn(g, p, 'けものの遠吠え：アンタップする ブロッカーを えらんでね', (x) => g.isBlocker(x));
-            if (!u) return;
-            u.tapped = false;
-            u.mods.push({ amount: 2000, until: g.turn + 1, oppTurnOnly: true });
-            g.log(`${u.name} を アンタップ・次の 相手の ターン +2000`);
-        },
-        want: (g, p) => p.field.some((u) => g.isBlocker(u))
-    },
+    379: { blocker: true, power: (g, u) => (g.active !== u.owner ? 1000 : 0) },
+    380: { magic: async (g, p) => { await tapOrUntap('けものの遠吠え', { magic: true, pump: 2000 })(g, p); g.draw(p, 1); }, want: canDraw },
     381: { attacked: () => ({ atk: -2000, log: 'バグムシの カウンター！ 攻撃してきた モンスター -2000' }) },
-    382: { grantBlocker: () => true, itemPower: (g, u) => (g.active !== u.owner ? 2000 : 0) },
+    382: { grantBlocker: () => true, itemPower: (g, u) => 1000 + (g.active !== u.owner ? 2000 : 0) },
     383: { blocker: true, blockWin: async (g, p) => g.draw(p, 1) },
     384: { scene: (g, owner, u, ctx) => (u.owner !== owner.id && ctx.attacking ? -1000 : 0), want: (g, p) => p.field.length >= 1 },
     385: { magic: async (g, p) => killOne(p.field.some((u) => g.isBlocker(u)) ? 7000 : 5000, '返り討ち')(g, p), want: (g, p) => hasTarget(p.field.some((u) => g.isBlocker(u)) ? 7000 : 5000)(g, p) },
-    386: { allyBlock: async (g, p, s, d, u) => { if (g.power(u, { attacking: true }) <= 5000) { g.log('夜明けの遠吠え！'); await g.destroy(u, 'NAITOON・夜明けの遠吠え'); } } },
+    386: { allyBlock: async (g, p, s, d, u) => { if (g.power(u, { attacking: true }) <= 6000) { g.log('夜明けの遠吠え！'); await g.destroy(u, 'NAITOON・夜明けの遠吠え'); } } },
     387: { blocker: true, block: async () => ({ killAttacker: true, log: 'イシイー・獣道の王の カウンター！' }) },
     388: { blocker: true, allBlockers: true, anyBlockWin: async (g, p) => { const o = g.opp(p); if (o.shields.length) { g.log('迷宮の守護者の 反撃！'); await g.breakShields(o, 1); } } },
     // ----- ノーブランド -----
@@ -704,9 +771,9 @@ export const EFFECTS = {
     393: { itemPower: () => 1000 },
     394: { blocker: true },
     395: { enter: async (g, p) => { if (p.shields.length <= 4 && p.deck.length > 2) { p.shields.push(g.takeTop(p)); g.log(`フキノトン：${p.name} の シールドが 1 枚 ふえた`); } } },
-    396: { magic: pumpOne(3000), want: (g, p) => p.field.some((u) => g.canAttack(u)) },
+    396: { magic: async (g, p) => { await pumpOne(3000)(g, p); g.draw(p, 1); }, want: (g, p) => p.field.some((u) => g.canAttack(u)) || canDraw(g, p) },
     397: { itemPower: (g, u, ctx) => (ctx.attacking ? 2000 : 0) },
-    398: { attack: async (g, p) => killOne(2000, 'ハリドラ', false)(g, p) },
+    398: { attack: async (g, p) => killOne(3000, 'ハリドラ', false)(g, p) },
     399: { magic: async (g, p) => { g.draw(p, 3); await g.discard(p, 1, 'ふるカワの大応援：捨てる カード'); }, want: canDraw },
     400: { turnStart: async (g, p) => { if (p.hand.length <= 2) { g.log('石の川タウン：1 枚 引く'); g.draw(p, 1); } }, want: (g, p) => p.hand.length <= 4 },
     401: { blocker: true, magicImmune: true },

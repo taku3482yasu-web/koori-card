@@ -32,3 +32,12 @@ test('絵の 行は w 文字 × h 行で、色は パレットに ある', () =>
         }
     }
 });
+
+test('全カードで 絵が ダブらない・場面の カードは 景色 (2026-11-03 ユーザー指定)', async () => {
+    const { COMBOS } = await import('../src/art/combos.js');
+    const keys = CARDS.map((c) => CARD_ART[c.no]);
+    assert.equal(new Set(keys).size, CARDS.length);
+    const sig = Object.values(COMBOS).map((s) => JSON.stringify(s));
+    assert.equal(new Set(sig).size, sig.length);
+    for (const c of CARDS.filter((x) => x.kind === 'field')) assert.ok(CARD_ART[c.no].startsWith('scene:') || COMBOS[c.no]?.land, c.name);
+});

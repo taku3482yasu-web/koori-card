@@ -113,7 +113,7 @@ async function main() {
     let shotDetail = false;
     let shotAsk = false;
     let dragged = false;
-    const seen = { arrow: false, crack: false, item: false, grave: false };
+    const seen = { arrow: false, crack: false, item: false, grave: false, scene: false, chance: false };
     while (steps++ < 600) {
         if (await js('!!document.querySelector(".result")')) break;
         if (await js('!!document.querySelector(".ask")')) {
@@ -125,6 +125,9 @@ async function main() {
         // 演出が 出ているか (CPU の こうげき中も)
         if (await js('!!document.querySelector(".arrow")')) seen.arrow = true;
         if (await js('!!document.querySelector(".mini.crack")')) seen.crack = true;
+        // 場面を 出すと その 景色が 場の 背景に なる (2026-11-03)
+        if (!seen.scene && await js('!!document.querySelector(".side.has-scene")')) { seen.scene = true; await snap('scene-bg'); }
+        if (!seen.chance && await js('document.querySelector(".ask h2")?.textContent.includes("アタックチャンス")')) { seen.chance = true; await snap('attack-chance'); }
         // 墓地に カードが あれば 一覧を 開いて カードを 大きく 見る
         if (!seen.grave && await js('document.querySelector(".side.mine .grave")?.textContent !== "墓地 0"')) {
             await click('.side.mine .grave');

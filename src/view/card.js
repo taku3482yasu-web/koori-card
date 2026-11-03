@@ -40,7 +40,7 @@ export function cardHTML(card, { secret = false } = {}) {
     <header><span class="lv">${card.lv}</span><span class="name">${esc(card.name)}</span>${emblem(card)}</header>
     <div class="art">${pic(card)}</div>
     <div class="mid">${mid}</div>
-    <div class="text"><div class="tags"><span class="tag">効果</span>${card.dt ? '<span class="tag dt">⚡ ドタバタトリガー</span>' : ''}</div>${esc(text)}</div>
+    <div class="text"><div class="tags"><span class="tag">効果</span>${card.dt ? '<span class="tag dt">⚡ ドタバタトリガー</span>' : ''}${card.text?.startsWith('【アタックチャンス') ? '<span class="tag ac">⚔ アタックチャンス</span>' : ''}</div>${esc(text)}</div>
     <footer>${rare}No.${String(card.no).padStart(3, '0')}　${esc(TEAMS[card.team] || '')}　${esc(card.from)}</footer>
 </article>`;
 }

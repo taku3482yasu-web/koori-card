@@ -333,6 +333,20 @@ export function paintScene(key, ART) {
                 for (let a = 0; a < t; a++) for (let b = 0; b < t; b++) px(x - o + a, y - o + b, c);
             }
         },
+        // 前作の 絵を 高さ h に のばして 置く (いちばん 近い ドットを とる。flip で 左右 反対)
+        fit(key2, x, y, h, { flip = false, tint = null } = {}) {
+            const a = ART[key2];
+            if (!a) throw new Error(`絵が ない: ${key2}`);
+            let k = h / a.h;
+            if (a.w * k > 34) k = 34 / a.w;
+            const tw = Math.round(a.w * k), th = Math.round(a.h * k);
+            const top = y + (h - th);
+            for (let ty = 0; ty < th; ty++) for (let tx = 0; tx < tw; tx++) {
+                const sx = Math.min(a.w - 1, Math.floor(tx / k)), sy = Math.min(a.h - 1, Math.floor(ty / k));
+                const ch = a.rows[sy][flip ? a.w - 1 - sx : sx];
+                if (ch !== '.') px(x + tx, top + ty, tint ? mix(a.palette[ch], tint[0], tint[1]) : a.palette[ch]);
+            }
+        },
         disc(cx, cy, r, c) { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r) px(cx + x, cy + y, c); },
         art(key2, x, y, { scale = 1, skip = '', tint = null, dither = false } = {}) {
             const a = ART[key2];

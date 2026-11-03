@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CARDS, RACES, KINDS, DECKS, TEAMS, RARITIES, SECRET, cardByNo, fitsDeck } from '../src/data/cards.js';
 
-test('カードは 303 種 (スターター 201 + パック 第1弾 102) で 番号が かぶらず、v0.1 の 1〜60 も のこっている (2026-11-03)', () => {
-    assert.equal(CARDS.length, 303);
+test('カードは 313 種 (スターター 211 + パック 第1弾 102) で 番号が かぶらず、v0.1 の 1〜60 も のこっている (2026-11-03)', () => {
+    assert.equal(CARDS.length, 313);
     assert.equal(CARDS.filter((c) => c.pack === 1).length, 102);
     assert.equal(new Set(CARDS.map((c) => c.no)).size, CARDS.length);
     for (let no = 1; no <= 60; no++) assert.ok(cardByNo(no), no);

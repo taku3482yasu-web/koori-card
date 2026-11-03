@@ -6,6 +6,7 @@ import { Game } from '../logic/game.js';
 import { cpuTurn } from '../logic/cpu.js';
 import { DECKS } from '../data/cards.js';
 import { cardHTML, pic, emblem } from './card.js';
+import { artURL } from '../art/index.js';
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -119,14 +120,16 @@ export function startBattle(root, myDeck, opts) {
     ${p.scene ? `<button class="scene" data-key="${mine ? 's' : 'S'}:${p.scene.uid}">場面：${esc(p.scene.name)}</button>` : ''}
     ${mine && p.buddy ? `<button class="buddy" data-key="b:${p.buddy.uid}">バディ：${esc(p.buddy.name)}</button>` : ''}
 </div>`;
-        return `<section class="side ${mine ? 'mine' : 'enemy'}">${mine ? '' : info}<div class="zone">${field}</div>${mine ? info : ''}</section>`;
+        // 場面を 出していたら、その 景色が 自分の 場の 背景に なる (2026-11-03 ユーザー指定)
+        const bg = p.scene ? artURL(p.scene.no) : null;
+        return `<section class="side ${mine ? 'mine' : 'enemy'}${bg ? ' has-scene' : ''}"${bg ? ` style="--scene: url('${bg}')"` : ''}>${mine ? '' : info}<div class="zone">${field}</div>${mine ? info : ''}</section>`;
     }
 
     function render() {
         if (!g) return;
         const scroll = root.querySelector('.fulllog')?.scrollTop;
         const p = me();
-        const status = g.winner !== null ? '' : g.active === 0 ? (busy ? '…' : 'あなたの ターン') : 'CPU の ターン…';
+        const status = g.winner !== null ? '' : g.active === 0 ? (busy ? '…' : g.phase === 'main' ? 'あなたの ターン（メインフェイズ）' : 'あなたの ターン（アタックフェイズ：カードは 使えない）') : 'CPU の ターン…';
         root.innerHTML = `
 <div class="battle">
     ${side(cpu(), false)}

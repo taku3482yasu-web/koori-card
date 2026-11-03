@@ -324,3 +324,52 @@ test('パック: メタルハリーは 相手の 魔法で 選ばれない・怪
     assert.ok(!a.field.includes(atk));
     assert.ok(b.field.includes(king));
 });
+
+test('カードを 使えるのは メインフェイズだけ: 攻撃したら その ターンは もう 使えない (2026-11-03)', async () => {
+    const g = new Game({ players: [{ name: 'A', deck: 'bariki' }, { name: 'B', deck: 'koori' }], rand: seeded(5), first: 0, ask: async (pid, req) => req.options[0]?.value ?? null });
+    await g.start();
+    const a = g.players[0];
+    const u = await g.enter(a, cardByNo(390));
+    u.enteredTurn = -1;
+    const magic = cardByNo(24);
+    assert.equal(g.canPlay(a, magic), true);
+    await g.attack(u, 'shield');
+    assert.equal(g.phase, 'attack');
+    assert.equal(g.canPlay(a, magic), false);
+    assert.match(g.whyNot(a, magic), /メインフェイズ/);
+    await g.endTurn();
+    assert.equal(g.phase, 'main');
+});
+
+test('アタックチャンス: 条件の モンスターが 攻撃するとき、Lv に 関係なく ただで 使える (2026-11-03)', async () => {
+    const g = new Game({ players: [{ name: 'A', deck: 'bariki' }, { name: 'B', deck: 'koori' }], rand: seeded(9), first: 0, ask: async (pid, req) => req.options[0]?.value ?? null });
+    await g.start();
+    const a = g.players[0];
+    a.hand = [{ uid: 9001, ...cardByNo(216) }, { uid: 9002, ...cardByNo(306) }];
+    assert.equal(g.canPlay(a, a.hand[0]), false);   // メインフェイズでは Lv3
+    const u = await g.enter(a, cardByNo(68));
+    u.enteredTurn = -1;
+    assert.ok(g.chances(a, u).some((c) => c.no === 216));
+    await g.attack(u, 'shield');
+    assert.ok(a.field.some((x) => x.no === 306), 'アソショウグンが ただで 出た');
+    assert.ok(a.grave.some((c) => c.no === 216));
+    assert.equal(a.lv, 1);
+    // 条件に 合わない モンスターの 攻撃では 使えない
+    const b = g.players[1];
+    const other = await g.enter(a, cardByNo(390));
+    a.hand.push({ uid: 9003, ...cardByNo(216) });
+    assert.equal(g.chances(a, other).length, 0);
+    assert.equal(b.id, 1);
+});
+
+test('バトルさせる (鬼の大暴れ): 自分の モンスターと 相手の モンスターが バトルする', async () => {
+    const g = new Game({ players: [{ name: 'A', deck: 'oni' }, { name: 'B', deck: 'koori' }], rand: seeded(11), first: 0, ask: async (pid, req) => req.options[0]?.value ?? null });
+    await g.start();
+    const [a, b] = g.players;
+    a.lv = 3;
+    const strong = await g.enter(a, cardByNo(402));
+    const weak = await g.enter(b, cardByNo(390));
+    await g.castFree(a, { uid: 9100, ...cardByNo(218) });
+    assert.ok(!b.field.includes(weak));
+    assert.ok(a.field.includes(strong));
+});
