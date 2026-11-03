@@ -29,7 +29,8 @@ export function pic(card) {
 }
 
 // secret: シークレット (パックで まれに 出る。OR = 別絵柄・HR = プラチナ・SR = ブラック)
-export function cardHTML(card, { secret = false } = {}) {
+//   たいせんの カードは card.secret (デッキに 入れた シークレット) を そのまま 使う
+export function cardHTML(card, { secret = !!card.secret } = {}) {
     const sec = secret && SECRET[card.rarity];
     const mid = card.kind === 'monster'
         ? `<span class="race">種族：${esc(card.race)}</span><span class="power"><small>パワー</small>${card.power}</span>`

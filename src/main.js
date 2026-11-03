@@ -187,7 +187,7 @@ ${peekHTML()}`;
 // ---------- オンライン ----------
 async function openRoom(kind, code) {
     const { hostRoom, joinRoom, channel, VERSION } = await import('./view/net.js');
-    const mine = { name: settings.name, deck: pickDeck, buddy: pickBuddy, list: col.decks[pickDeck] ? deckOf(col, pickDeck) : null, ver: VERSION };
+    const mine = { name: settings.name, deck: pickDeck, buddy: pickBuddy, list: col.decks[pickDeck] ? deckOf(col, pickDeck) : null, secret: col.secret, ver: VERSION };
     room = { status: 'サーバーに つないでいます…', code: null, error: null, handle: null };
     const cb = { onCode: (c) => { room.code = c; render(); }, onStatus: (s) => { if (room) { room.status = s; render(); } } };
     room.handle = kind === 'host' ? hostRoom(mine, cb) : joinRoom(code, mine, cb);
@@ -210,7 +210,7 @@ async function openRoom(kind, code) {
     net.close = ch.close;
     net.flush = () => { while (pending.length && net.onMessage) net.onMessage(pending.shift()); };
     const otherName = cleanName(res.other.name);
-    const other = { name: otherName === 'あなた' ? '相手' : otherName, deck: DECKS[res.other.deck] ? res.other.deck : 'koori', buddy: res.other.buddy, list: res.other.list || null };
+    const other = { name: otherName === 'あなた' ? '相手' : otherName, deck: DECKS[res.other.deck] ? res.other.deck : 'koori', buddy: res.other.buddy, list: res.other.list || null, secret: res.other.secret || null };
     room = null;
     screen = 'battle';
     sfx('chance');
@@ -251,6 +251,7 @@ function onClick(e) {
         startBattle(app, pickDeck, {
             buddy: pickBuddy,
             list: col.decks[pickDeck] ? deckOf(col, pickDeck) : null,
+            secret: col.secret,
             settings,
             onResult,
             onQuit: () => { screen = 'title'; render(); }

@@ -1,6 +1,6 @@
 // =====================================================================
 // 効果音 (2026-11-03 ユーザー指定: 音の オン・オフ)。音の ファイルは 使わず、ブラウザで ピコピコ 鳴らす
-//   play(name): click / card (カードを 出す) / attack / break (シールドが 割れる) / destroy / trigger / chance / win / lose / pack / rare / legend (HR・OR を 使う)
+//   play(name): click / card (カードを 出す) / attack / break (シールドが 割れる) / destroy / trigger / chance / win / lose / pack / rare / legend (HR・OR を 使う) / secret (シークレットを 使う)
 // =====================================================================
 let ctx = null;
 let on = true;
@@ -19,6 +19,7 @@ const SFX = {
     lose: [[392, 0.18, 'triangle', 0.12], [330, 0.18, 'triangle', 0.12], [262, 0.4, 'triangle', 0.12]],
     pack: [[440, 0.05, 'square', 0.06], [554, 0.05, 'square', 0.06], [659, 0.05, 'square', 0.06], [880, 0.12, 'square', 0.06]],
     legend: [[523, 0.1, 'square', 0.09], [659, 0.1, 'square', 0.09], [784, 0.1, 'square', 0.09], [1047, 0.1, 'square', 0.09], [784, 0.08, 'triangle', 0.12], [1047, 0.08, 'triangle', 0.12], [1319, 0.08, 'triangle', 0.12], [1568, 0.55, 'triangle', 0.14]],
+    secret: [[262, 0.12, 'sawtooth', 0.06], [392, 0.12, 'sawtooth', 0.06], [523, 0.12, 'square', 0.08], [784, 0.1, 'square', 0.08], [1047, 0.1, 'triangle', 0.12], [1319, 0.1, 'triangle', 0.12], [1568, 0.1, 'triangle', 0.12], [2093, 0.7, 'triangle', 0.14]],
     rare: [[784, 0.08, 'triangle', 0.13], [988, 0.08, 'triangle', 0.13], [1175, 0.08, 'triangle', 0.13], [1568, 0.4, 'triangle', 0.13]]
 };
 

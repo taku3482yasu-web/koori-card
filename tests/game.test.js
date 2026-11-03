@@ -373,3 +373,15 @@ test('バトルさせる (鬼の大暴れ): 自分の モンスターと 相手�
     assert.ok(!b.field.includes(weak));
     assert.ok(a.field.includes(strong));
 });
+
+test('シークレット: 持っている 枚数まで たいせんでも シークレットの 絵柄 (見た目だけ。2026-11-03)', async () => {
+    const list = [...starterDeck('koori').slice(0, 46), 321, 321, 321, 322];
+    const g = new Game({ players: [{ name: 'A', deck: 'koori', list, secret: { 321: 2, 322: 1, 1: 1 }, buddy: 1 }, { name: 'B', deck: 'oni' }], rand: seeded(4) });
+    const p = g.players[0];
+    const all = [...p.deck, ...p.hand, ...p.shields];
+    assert.equal(all.filter((c) => c.no === 321 && c.secret).length, 2);
+    assert.equal(all.filter((c) => c.no === 321 && !c.secret).length, 1);
+    assert.equal(all.filter((c) => c.no === 322 && c.secret).length, 1);
+    assert.equal(p.buddy.secret, true);
+    assert.ok(!g.players[1].deck.some((c) => c.secret));
+});

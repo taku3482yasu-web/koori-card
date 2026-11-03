@@ -38,12 +38,15 @@ export function starterDeck(deckId) {
 //   has(no): パックの カードを 持っているか (持っていない パックの カードは えらべない。2026-11-03)
 export const buddyChoices = (deckId, has = () => false) => CARDS.filter((c) => c.kind === 'monster' && c.team === deckId && (!c.pack || has(c.no)));
 //   list: 自分で 作った デッキ (カード番号 50 こ。なければ スターターデッキ)
-function newPlayer(id, name, deckId, cpu, rand, buddyNo = null, list = null) {
-    const deck = shuffle((list || starterDeck(deckId)).map(inst), rand);
+//   secret: 持っている シークレットの 枚数 { 番号: 枚数 }。その 枚数まで シークレットの 絵柄で 出る (見た目だけ。2026-11-03)
+function newPlayer(id, name, deckId, cpu, rand, buddyNo = null, list = null, secret = null) {
+    const used = {};
+    const mark = (c) => { if (secret?.[c.no] > (used[c.no] || 0)) { used[c.no] = (used[c.no] || 0) + 1; c.secret = true; } return c; };
+    const deck = shuffle((list || starterDeck(deckId)).map((no) => mark(inst(no))), rand);
     const okBuddy = buddyNo && cardByNo(buddyNo)?.kind === 'monster' && cardByNo(buddyNo).team === deckId;
     const p = {
         id, name, cpu, deckId, deck, hand: [], shields: [], field: [], grave: [],
-        buddy: inst(okBuddy ? buddyNo : DECKS[deckId].buddy), scene: null, lv: 1, broken: 0, summoned: false, magicCount: 0, lvDownTurn: 0, discardDrawTurn: 0
+        buddy: (() => { const b = inst(okBuddy ? buddyNo : DECKS[deckId].buddy); if (secret?.[b.no] > 0) b.secret = true; return b; })(), scene: null, lv: 1, broken: 0, summoned: false, magicCount: 0, lvDownTurn: 0, discardDrawTurn: 0
     };
     for (let i = 0; i < SHIELDS; i++) p.shields.push(p.deck.pop());
     for (let i = 0; i < FIRST_HAND; i++) p.hand.push(p.deck.pop());
@@ -57,7 +60,7 @@ export class Game {
         const rand = opts.rand || Math.random;
         this.rand = rand;
         uidSeq = 0;   // カードの 番号を 毎回 1 から (オンライン対戦で 2 台の 番号を そろえる)
-        this.players = opts.players.map((o, i) => newPlayer(i, o.name, o.deck, !!o.cpu, rand, o.buddy, o.list));
+        this.players = opts.players.map((o, i) => newPlayer(i, o.name, o.deck, !!o.cpu, rand, o.buddy, o.list, o.secret));
         this.first = opts.first ?? (rand() < 0.5 ? 0 : 1);
         this.active = this.first;
         this.turn = 0;

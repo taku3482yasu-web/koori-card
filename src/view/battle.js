@@ -5,7 +5,7 @@
 // =====================================================================
 import { Game } from '../logic/game.js';
 import { cpuTurn } from '../logic/cpu.js';
-import { DECKS } from '../data/cards.js';
+import { DECKS, SECRET } from '../data/cards.js';
 import { cardHTML, pic, emblem } from './card.js';
 import { artURL } from '../art/index.js';
 import { Lockstep, seeded } from '../logic/lockstep.js';
@@ -42,9 +42,9 @@ export function startBattle(root, myDeck, opts) {
 
     g = new Game({
         players: online
-            ? online.players.map((x) => ({ name: x.name, deck: x.deck, buddy: x.buddy, list: x.list }))
+            ? online.players.map((x) => ({ name: x.name, deck: x.deck, buddy: x.buddy, list: x.list, secret: x.secret }))
             : [
-                { name: settings.name || 'あなた', deck: myDeck, buddy, list },
+                { name: settings.name || 'あなた', deck: myDeck, buddy, list, secret: opts.secret },
                 { name: `CPU（${DECKS[cpuDeck].name}）`, deck: cpuDeck, cpu: true }
             ],
         rand: online ? seeded(online.seed) : undefined,
@@ -109,23 +109,29 @@ export function startBattle(root, myDeck, opts) {
     // 使う カードを まんなかに 大きく 見せてから 使う (2026-11-03 ユーザー指定: どちらにも わかるように)
     //   レア度の 高い カード (VR・SR・HR・OR) は 専用の 演出。タップで とばせる
     const RARE_MS = { VR: 1500, SR: 1900, HR: 2400, OR: 3200 };
+    // シークレットは さらに 長く・専用の 演出 (SR ブラック・HR プラチナ・OR 別絵柄)
+    const SECRET_MS = { black: 2600, platinum: 3000, alt: 3800 };
     async function reveal({ card, player, how }) {
         const mine = player.id === ME;
         const verb = card.kind === 'monster' ? 'を 出した' : card.kind === 'item' ? 'を 付ける' : card.kind === 'field' ? 'の 場面を 出した' : 'を 使った';
         const head = how === 'trigger' ? '⚡ ドタバタトリガー！' : how === 'chance' ? '⚔ アタックチャンス！' : '';
         const rare = RARE_MS[card.rarity] ? card.rarity : '';
+        const sec = card.secret && SECRET[card.rarity];
+        // 火の粉・星・流れ星の つぶ (シークレットだけ)
+        const bits = sec ? `<div class="bits">${Array.from({ length: 18 }, (_, i) => `<i style="left:${(i * 37) % 100}%;top:${sec.id === 'platinum' ? `${(i * 53) % 100}%` : ''};animation-delay:${((i * 0.37) % 2).toFixed(2)}s"></i>`).join('')}</div>` : '';
         const el = document.createElement('div');
-        el.className = `reveal ${mine ? 'mine' : 'opp'} ${rare ? `r-${rare}` : ''}`;
-        el.innerHTML = `${rare ? '<div class="rays"></div><div class="ring"></div><div class="ring r2"></div><div class="flash"></div>' : ''}
+        el.className = `reveal ${mine ? 'mine' : 'opp'} ${rare ? `r-${rare}` : ''} ${sec ? `s-${sec.id}` : ''}`;
+        el.innerHTML = `${rare ? '<div class="rays"></div><div class="ring"></div><div class="ring r2"></div><div class="flash"></div>' : ''}${sec?.id === 'black' ? '<div class="bolt"></div>' : ''}${bits}
 <div class="rv-in">
     <p class="who">${esc(player.name)}${head ? `　${head}` : ''}</p>
     ${rare ? `<p class="rarelabel">${rare}</p>` : ''}
+    ${sec ? `<p class="seclabel">★ シークレット・${esc(sec.name)} ★</p>` : ''}
     <div class="rv-card">${cardHTML(card)}</div>
     <p class="what">${esc(card.name)} ${verb}</p>
 </div>`;
         document.body.append(el);
-        sfx(rare === 'OR' || rare === 'HR' ? 'legend' : rare ? 'rare' : 'card');
-        const ms = Math.max(400, (RARE_MS[rare] || 1150) * fxK);
+        sfx(sec ? 'secret' : rare === 'OR' || rare === 'HR' ? 'legend' : rare ? 'rare' : 'card');
+        const ms = Math.max(400, ((sec && SECRET_MS[sec.id]) || RARE_MS[rare] || 1150) * fxK);
         await new Promise((r) => { const t = setTimeout(r, ms); el.onclick = () => { clearTimeout(t); r(); }; });
         el.classList.add('out');
         await wait(180);
@@ -158,7 +164,8 @@ export function startBattle(root, myDeck, opts) {
         const pw = unit ? g.power(unit) : card.power;
         const diff = unit ? pw - card.power : 0;
         const ready = unit && unit.owner === ME && g.active === ME && g.canAttack(unit);
-        return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''} ${unit?.tapped ? 'tapped' : ''}" data-key="${key}">
+        const sec = card.secret && SECRET[card.rarity];
+        return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''} ${unit?.tapped ? 'tapped' : ''}${sec ? ` sec s-${sec.id}` : ''}" data-key="${key}">
     <span class="pic">${pic(card)}</span>
     <span class="lv">${card.lv}</span>
     ${emblem(card, 'emb')}

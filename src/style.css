@@ -362,3 +362,43 @@ h2.sub { font-size: 16px; margin: 18px 0 8px; }
 .reveal.r-OR .rv-card .card { animation: rvglow 0.5s ease-in-out infinite; }
 .reveal.r-OR .rarelabel { font-size: 52px; background: linear-gradient(90deg, #ff5a5a, #ffb84a, #fff24a, #5aff9a, #5ac8ff, #c86aff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 10px #fff) drop-shadow(0 4px 0 #000); }
 @media (prefers-reduced-motion: reduce) { .reveal .rays, .reveal .ring, .reveal .rv-in, .reveal .rv-card::after { animation: none !important; } .reveal .ring { display: none; } }
+
+/* ---------- たいせんの シークレット (2026-11-03): 場・手札の 小さい カード ---------- */
+.mini.sec.s-platinum { background: linear-gradient(135deg, #f4f6fb, #b8c0d0 45%, #f8faff 55%, #a8b0c4); border-color: #fff; color: #1a2233; box-shadow: 0 0 8px rgba(255, 255, 255, 0.7); }
+.mini.sec.s-platinum .nm, .mini.sec.s-platinum .pw { color: #1a2233; }
+.mini.sec.s-black { background: linear-gradient(160deg, #1a1a22, #000 60%, #2a2410); border-color: #e8c45a; box-shadow: 0 0 8px rgba(232, 196, 90, 0.6); }
+.mini.sec.s-black .pw { color: #ffd84a; }
+.mini.sec.s-alt { border-color: #ffd84a; box-shadow: 0 0 10px rgba(255, 200, 90, 0.8); }
+.mini.sec.s-alt .pic { background: conic-gradient(from 30deg, #ff7a7a, #ffd84a, #7affb0, #7ac8ff, #c87aff, #ff7a7a); border-radius: 4px; }
+.mini.sec.s-alt .pic img { transform: scaleX(-1); }
+.mini.sec::after { content: "★"; position: absolute; left: 3px; bottom: 2px; font-size: 10px; color: #ffd84a; text-shadow: 0 0 3px #000; }
+
+/* ---------- シークレットを 使う ときの 演出 ---------- */
+.reveal .seclabel { margin: 0; font-size: 15px; font-weight: 900; letter-spacing: 4px; animation: rvlabel 0.6s 0.2s ease-out both; }
+@keyframes rvbolt { 0%, 100% { opacity: 0; } 8%, 14% { opacity: 1; } 10% { opacity: 0.2; } }
+@keyframes rvember { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-110vh); opacity: 0; } }
+@keyframes rvtwinkle { 50% { opacity: 0.2; transform: scale(0.5); } }
+@keyframes rvgalaxy { to { transform: rotate(-360deg) scale(1.2); } }
+.reveal .bits { position: absolute; inset: 0; pointer-events: none; }
+.reveal .bits i { position: absolute; display: block; }
+/* SR ブラック: まっ黒な 画面に 金の いなずまと 火の粉 */
+.reveal.s-black { background: radial-gradient(circle, #1a1408, #000 70%); --gl: #e8c45a; --rc: #e8c45a; }
+.reveal.s-black .rays { background: repeating-conic-gradient(rgba(232, 196, 90, 0.18) 0 3deg, transparent 3deg 15deg); }
+.reveal.s-black .flash { background: #000; }
+.reveal.s-black .bolt { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 46%, #ffe89a 48%, #fff 49%, #ffe89a 50%, transparent 52%), linear-gradient(80deg, transparent 20%, #ffd84a 21%, transparent 22.5%); animation: rvbolt 1.4s steps(1) infinite; mix-blend-mode: screen; }
+.reveal.s-black .bits i { width: 4px; height: 4px; border-radius: 50%; background: #ffb84a; box-shadow: 0 0 6px #ff8a2a; bottom: -10px; animation: rvember 2.2s linear infinite; }
+.reveal.s-black .seclabel { color: #e8c45a; text-shadow: 0 0 10px #000, 0 0 6px #e8c45a; }
+.reveal.s-black .rarelabel { color: #111; -webkit-text-stroke: 2px #e8c45a; text-shadow: 0 0 18px #e8c45a; }
+/* HR プラチナ: 白く かがやく 光と きらめく 星 */
+.reveal.s-platinum { background: radial-gradient(circle, #ffffff, #c8d0e0 40%, #3a4458 100%); --gl: #ffffff; --rc: #ffffff; }
+.reveal.s-platinum .rays { opacity: 0.7; background: repeating-conic-gradient(rgba(255, 255, 255, 0.9) 0 4deg, rgba(200, 210, 230, 0.2) 4deg 12deg); animation-duration: 5s; }
+.reveal.s-platinum .bits i { width: 8px; height: 8px; background: #fff; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: rvtwinkle 0.9s ease-in-out infinite; filter: drop-shadow(0 0 4px #9ac8ff); }
+.reveal.s-platinum .who, .reveal.s-platinum .what { text-shadow: 0 1px 2px #000, 0 0 8px #000; }
+.reveal.s-platinum .seclabel { color: #fff; text-shadow: 0 0 6px #6a7aa0, 0 2px 0 #3a4458; }
+.reveal.s-platinum .rarelabel { background: linear-gradient(90deg, #ffffff, #b8c0d0, #ffffff, #9aa6bd); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 #3a4458) drop-shadow(0 0 8px #fff); }
+/* OR 別絵柄: うずまく 銀河と 星の 雨 (いちばん 長い) */
+.reveal.s-alt { background: radial-gradient(circle, #2a0a4a, #05020c 75%); --gl: #ff9af0; --rc: #9ad8ff; }
+.reveal.s-alt .rays { opacity: 0.9; background: conic-gradient(from 0deg, #ff5a9a, #ffd84a, #5aff9a, #5ac8ff, #c86aff, #ff5a9a); -webkit-mask: repeating-radial-gradient(circle, #000 0 6px, transparent 6px 22px); mask: repeating-radial-gradient(circle, #000 0 6px, transparent 6px 22px); animation: rvgalaxy 3s linear infinite; }
+.reveal.s-alt .bits i { width: 3px; height: 16px; border-radius: 2px; background: linear-gradient(#fff, transparent); top: -20px; animation: rvember 1.4s linear infinite reverse; }
+.reveal.s-alt .seclabel { background: linear-gradient(90deg, #ff9af0, #ffd84a, #9ad8ff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 6px #fff); }
+@media (prefers-reduced-motion: reduce) { .reveal .bits, .reveal .bolt { display: none; } }
