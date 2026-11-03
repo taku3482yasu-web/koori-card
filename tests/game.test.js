@@ -385,3 +385,13 @@ test('シークレット: 持っている 枚数まで たいせんでも シー
     assert.equal(p.buddy.secret, true);
     assert.ok(!g.players[1].deck.some((c) => c.secret));
 });
+
+test('CPU の 強さ (2026-11-03): かんたん・つよいでも 最後まで 決着する', async () => {
+    for (const [la, lb] of [['easy', 'hard'], ['hard', 'easy'], ['easy', 'easy']]) {
+        const g = new Game({ players: [{ name: 'A', deck: 'koori', cpu: true, level: la }, { name: 'B', deck: 'oni', cpu: true, level: lb }], rand: seeded(17) });
+        await g.start();
+        for (let t = 0; t < 300 && g.winner === null; t++) await cpuTurn(g, g.players[g.active]);
+        assert.notEqual(g.winner, null, `${la} vs ${lb}`);
+        assert.equal(g.players[0].level, la);
+    }
+});

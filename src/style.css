@@ -402,3 +402,10 @@ h2.sub { font-size: 16px; margin: 18px 0 8px; }
 .reveal.s-alt .bits i { width: 3px; height: 16px; border-radius: 2px; background: linear-gradient(#fff, transparent); top: -20px; animation: rvember 1.4s linear infinite reverse; }
 .reveal.s-alt .seclabel { background: linear-gradient(90deg, #ff9af0, #ffd84a, #9ad8ff); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 6px #fff); }
 @media (prefers-reduced-motion: reduce) { .reveal .bits, .reveal .bolt { display: none; } }
+
+/* チュートリアル (2026-11-03): 画面の 上に 説明 */
+.coach { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 30; width: min(420px, calc(100vw - 24px)); padding: 10px 14px; border-radius: 12px; border: 3px solid var(--lv); background: #1d3f80; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
+.coach b { color: var(--lv); }
+.coach p { margin: 6px 0 8px; font-size: 14px; line-height: 1.6; }
+.coach .act { padding: 6px 14px; }
+.netnote { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: #a83a3a; color: #fff; font-size: 12px; }

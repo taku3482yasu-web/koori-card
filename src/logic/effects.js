@@ -715,7 +715,7 @@ export const EFFECTS = {
     368: { enter: tapOne('カミナリグモ', false) },
     369: { magic: async (g, p) => { await g.discardRandom(g.opp(p), 'すりかえ'); g.draw(p, 1); }, want: (g, p) => g.opp(p).hand.length > 0 || canDraw(g, p) },
     370: { enter: async (g, p) => { await peekDiscard(g, p); g.draw(p, 1); } },
-    371: { itemPower: () => 1000, itemAttack: async (g, p) => g.discardRandom(g.opp(p), '怪盗のマント') },
+    371: { itemPower: () => 1000, itemAttack: async (g, p, u) => { if (p.capeTurn === g.turn) return; p.capeTurn = g.turn; await g.discardRandom(g.opp(p), '怪盗のマント'); } },   // 1 ターンに 1 回 (2026-11-03 バランス)
     372: {
         enter: async (g, p) => {
             const o = g.opp(p);
@@ -726,7 +726,7 @@ export const EFFECTS = {
             await g.discard(o, 1, 'ねこまっしぐら：捨てる カード');
         }
     },
-    373: { scene: (g, owner, u) => (u.owner === owner.id && g.opp(owner).hand.length <= 2 ? 2000 : 0), want: (g, p) => p.field.length >= 1 },
+    373: { scene: (g, owner, u) => (u.owner === owner.id && g.opp(owner).hand.length <= 2 ? 1000 : 0), want: (g, p) => p.field.length >= 1 },
     374: {
         magic: async (g, p) => { for (const e of g.opp(p).field.filter((x) => x.item)) g.dropItem(e, 'ぜんぶいただき'); await g.discard(g.opp(p), 1, 'ぜんぶいただき：捨てる カード'); },
         want: (g, p) => g.opp(p).field.some((u) => u.item) || g.opp(p).hand.length > 0
@@ -736,7 +736,7 @@ export const EFFECTS = {
     377: {
         enter: async (g, p) => {
             if (p.field.length >= g.slots(p)) return;
-            const t = await g.pickEnemy(p, '怪盗団：うばう 相手の モンスターを えらんでね', (u) => g.power(u) <= 7000);
+            const t = await g.pickEnemy(p, '怪盗団：うばう 相手の モンスターを えらんでね', (u) => g.power(u) <= 5000);
             if (t) g.steal(t, p);
         }
     },

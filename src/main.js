@@ -8,8 +8,9 @@ import { startBattle } from './view/battle.js';
 import { HELP } from './view/help.js';
 import { play as sfx, setSound } from './view/sound.js';
 import { buddyChoices } from './logic/game.js';
+import { LEVELS } from './logic/cpu.js';
 import {
-    PACK_PRICE, PACK_CARDS, DECK_SIZE, loadCollection, saveCollection, newCollection, openPack, buyPack, addResult, has, ownedCount,
+    PACK_PRICE, PACK_CARDS, DECK_SIZE, LEVEL_POINTS, loadCollection, saveCollection, newCollection, openPack, buyPack, addResult, has, ownedCount,
     deckOf, deckErrors, deckLimit, deckPool, saveDeck, resetDeck
 } from './logic/collection.js';
 import { SPEEDS, loadSettings, saveSettings, cleanName } from './logic/settings.js';
@@ -23,6 +24,7 @@ setSound(settings.sound);
 
 let screen = 'title';
 let mode = 'cpu';      // 対戦の 相手: cpu / online
+let level = 'normal';  // CPU の 強さ (2026-11-03): easy / normal / hard
 let pickDeck = null;   // 対戦で つかう デッキ
 let pickBuddy = null;
 let room = null;       // オンライン: { status, code, error, handle, joining }
@@ -44,6 +46,7 @@ const teamTabs = (cur, attr, nobrand = true) => `<nav class="tabs">
 const peekHTML = () => (peek ? `<button class="peek" data-close="1">${cardHTML(cardByNo(peek), { secret: (col.secret[peek] || 0) > 0 })}</button>` : '');
 const deckButtons = (attr) => Object.entries(DECKS).map(([id, d]) => `<button class="deckpick ${id}" data-${attr}="${id}"><img class="deckemb" src="${emblemURL(id) || ''}" alt="">${d.name}<small>${col.decks[id] ? '自分の デッキ' : 'スターターデッキ'}</small><small class="style">${d.style}</small></button>`).join('');
 
+const TAIZEN = 'https://taku3482yasu-web.github.io/koori-game-taizen/';   // ゲーム大全 (2026-11-03 ユーザー指定: 全部の ゲームに もどる ボタン)
 const MENU = [['versus', '⚔', '対戦する', 'CPU・オンライン'], ['shop', '🎁', 'ショップ', 'パックを かう・あける'], ['help', '？', 'ヘルプ', 'あそびかた'],
     ['cards', '🃏', 'カード', 'カードを 見る・コレクション'], ['deck', '📦', 'デッキ', 'デッキを 作る'], ['settings', '⚙', '設定', '名前・音・速さ']];
 
@@ -60,6 +63,7 @@ const SCREENS = {
     <h1>こおりくんの大冒険<small>カードゲーム</small></h1>
     <p class="wallet">${esc(settings.name)}　${wallet()}</p>
     <nav class="mainmenu">${MENU.map(([id, icon, name, sub]) => `<button class="menubtn" data-screen="${id}"><span class="icon">${icon}</span>${name}<small>${sub}</small></button>`).join('')}</nav>
+    <button class="link" data-taizen="1">🏠 ゲーム大全に もどる</button>
 </section>`,
 
     // ---------- 対戦する ----------
@@ -67,10 +71,14 @@ const SCREENS = {
 <header class="top"><h1>対戦する</h1>${back()}</header>
 <nav class="mainmenu two">
     <button class="menubtn" data-mode="cpu"><span class="icon">🤖</span>CPU と 対戦<small>CPU は ほかの デッキから ランダム</small></button>
-    <button class="menubtn" data-mode="online"><span class="icon">🌐</span>オンライン対戦<small>友だちと ルーム番号で つながる</small></button>
+    <button class="menubtn" data-mode="online"><span class="icon">🌐</span>オンライン対戦<small>ルーム番号・ランダムマッチ</small></button>
 </nav>`,
+    // CPU の 強さ (2026-11-03 ユーザー指定)
+    cpulevel: () => `
+<header class="top"><h1>CPU と 対戦<small>CPU の 強さを えらんでね</small></h1>${back('versus')}</header>
+<nav class="mainmenu two">${Object.entries(LEVELS).map(([id, name]) => `<button class="menubtn" data-level="${id}"><span class="icon">${id === 'easy' ? '🌱' : id === 'normal' ? '⚔' : '🔥'}</span>${name}<small>勝ち ${LEVEL_POINTS[id][0]}・負け ${LEVEL_POINTS[id][1]} ポイント</small></button>`).join('')}</nav>`,
     pickdeck: () => `
-<header class="top"><h1>${mode === 'online' ? 'オンライン対戦' : 'CPU と 対戦'}<small>つかう デッキを えらんでね</small></h1>${back('versus')}</header>
+<header class="top"><h1>${mode === 'online' ? 'オンライン対戦' : `CPU と 対戦（${LEVELS[level]}）`}<small>つかう デッキを えらんでね</small></h1>${back(mode === 'online' ? 'versus' : 'cpulevel')}</header>
 <div class="decks">${deckButtons('battle')}</div>`,
     buddy: () => {
         const d = DECKS[pickDeck];
@@ -86,8 +94,10 @@ const SCREENS = {
         ${room.code ? `<p>この 番号を 友だちに 伝えてね</p><p class="code">${room.code}</p>` : ''}
         <p class="status">${esc(room.status)}</p>
         <button class="link" data-leave="1">やめる</button>` : `
-        <button class="play big" data-host="1">部屋を 作る</button>
-        <p class="or">または</p>
+        <button class="play big" data-random="1">ランダムマッチ</button>
+        <p class="count">だれかと 自動で つながる（同じ ときに さがしている 人と）</p>
+        <p class="or">または 友だちと</p>
+        <button class="play" data-host="1">部屋を 作る</button>
         <div class="join"><input id="code" inputmode="numeric" maxlength="6" placeholder="6 けたの 番号" autocomplete="off"><button class="play" data-join="1">部屋に 入る</button></div>
         ${room?.error ? `<p class="errs">${esc(room.error)}</p>` : ''}
         <p class="count">あなたの 名前：${esc(settings.name)}（設定で かえられる）</p>`}
@@ -179,6 +189,7 @@ ${peekHTML()}`;
     <div class="row"><span>音</span><nav class="tabs small"><button data-set="sound" data-val="1" class="${settings.sound ? 'on' : ''}">オン</button><button data-set="sound" data-val="0" class="${settings.sound ? '' : 'on'}">オフ</button></nav></div>
     <div class="row"><span>CPU の 速さ</span><nav class="tabs small">${speed('cpuSpeed')}</nav></div>
     <div class="row"><span>演出の 速さ</span><nav class="tabs small">${speed('fxSpeed')}</nav></div>
+    <div class="row"><span>チュートリアル</span><button class="link" data-tutorial="1">${settings.tutorialDone ? 'つぎの CPU 戦で もう いちど 見る' : 'つぎの CPU 戦で 見られる'}</button></div>
     <div class="row danger"><span>データの リセット</span><button class="link" data-reset="1">ポイント・カード・デッキを はじめから にする</button></div>
 </section>`;
     }
@@ -186,11 +197,11 @@ ${peekHTML()}`;
 
 // ---------- オンライン ----------
 async function openRoom(kind, code) {
-    const { hostRoom, joinRoom, channel, VERSION } = await import('./view/net.js');
+    const { hostRoom, joinRoom, randomMatch, channel, VERSION } = await import('./view/net.js');
     const mine = { name: settings.name, deck: pickDeck, buddy: pickBuddy, list: col.decks[pickDeck] ? deckOf(col, pickDeck) : null, secret: col.secret, ver: VERSION };
     room = { status: 'サーバーに つないでいます…', code: null, error: null, handle: null };
     const cb = { onCode: (c) => { room.code = c; render(); }, onStatus: (s) => { if (room) { room.status = s; render(); } } };
-    room.handle = kind === 'host' ? hostRoom(mine, cb) : joinRoom(code, mine, cb);
+    room.handle = kind === 'host' ? hostRoom(mine, cb) : kind === 'random' ? randomMatch(mine, cb) : joinRoom(code, mine, cb);
     render();
     let res;
     try {
@@ -202,12 +213,13 @@ async function openRoom(kind, code) {
         return;
     }
     // ここから すぐ つなぐ (とどいた 行動を とりこぼさない)
-    const me = kind === 'host' ? 0 : 1;
+    const me = res.hostId ? 1 : 0;   // 部屋を 作った がわが 0
     const pending = [];
-    const net = { me, onMessage: null, onClose: null };
-    const ch = channel(res, me, (m) => (net.onMessage ? net.onMessage(m) : pending.push(m)), (why) => net.onClose?.(why));
+    const net = { me, onMessage: null, onStatus: null, onClose: null };
+    const ch = channel(res, me, (m) => (net.onMessage ? net.onMessage(m) : pending.push(m)), (text) => net.onStatus?.(text), (why) => net.onClose?.(why));
     net.send = ch.send;
     net.close = ch.close;
+    window.__net = ch;   // テスト用 (つながりを 切る)
     net.flush = () => { while (pending.length && net.onMessage) net.onMessage(pending.shift()); };
     const otherName = cleanName(res.other.name);
     const other = { name: otherName === 'あなた' ? '相手' : otherName, deck: DECKS[res.other.deck] ? res.other.deck : 'koori', buddy: res.other.buddy, list: res.other.list || null, secret: res.other.secret || null };
@@ -221,8 +233,8 @@ async function openRoom(kind, code) {
         onQuit: () => { screen = 'title'; render(); }
     });
 }
-function onResult(won) {
-    const n = addResult(col, won);
+function onResult(won, lv = 'normal') {
+    const n = addResult(col, won, lv);
     save();
     return `+${n} ポイント（いま ${col.points} ポイント）`;
 }
@@ -242,7 +254,10 @@ function onClick(e) {
     sfx('click');
     if (d.close) { peek = null; render(); return; }
     if (d.peek) { peek = +d.peek; render(); return; }
-    if (d.mode) { mode = d.mode; screen = 'pickdeck'; render(); return; }
+    if (d.mode) { mode = d.mode; screen = d.mode === 'cpu' ? 'cpulevel' : 'pickdeck'; render(); return; }
+    if (d.level) { level = d.level; screen = 'pickdeck'; render(); return; }
+    if (d.taizen) { if (window.confirm('ゲーム大全に もどる？')) window.location.href = TAIZEN; return; }
+    if (d.random) { openRoom('random'); return; }
     if (d.battle) { pickDeck = d.battle; screen = 'buddy'; render(); return; }
     if (d.buddy) {
         pickBuddy = Number(d.buddy);
@@ -253,7 +268,10 @@ function onClick(e) {
             list: col.decks[pickDeck] ? deckOf(col, pickDeck) : null,
             secret: col.secret,
             settings,
-            onResult,
+            level,
+            tutorial: !settings.tutorialDone,
+            onTutorialDone: () => { settings.tutorialDone = true; saveSettings(storage, settings); },
+            onResult: (won) => onResult(won, level),
             onQuit: () => { screen = 'title'; render(); }
         });
         return;
@@ -292,6 +310,7 @@ function onClick(e) {
         render();
         return;
     }
+    if (d.tutorial) { settings.tutorialDone = false; saveSettings(storage, settings); render(); return; }
     if (d.reset) {
         if (!window.confirm('ポイント・あつめた カード・作った デッキを ぜんぶ けして はじめから にする？')) return;
         if (!window.confirm('ほんとうに いい？（もとに もどせません）')) return;

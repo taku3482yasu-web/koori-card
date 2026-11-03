@@ -97,15 +97,12 @@ async function main() {
     };
     await enter(A, 'koori');
     await enter(B, 'oni');
-    await A.click('[data-host="1"]');
-    let code = null;
-    for (let i = 0; i < 100 && !code; i++) { await sleep(200); code = await A.js('document.querySelector(".room .code")?.textContent'); }
-    if (!code) { errors.push(`部屋の 番号が 出ない: ${await A.js('document.querySelector(".room")?.textContent')}`); return; }
-    console.log(`オンラインテスト: 部屋 ${code}`);
-    await A.snap('room');
-    await B.js(`(() => { document.querySelector('#code').value = '${code}'; return true; })()`);
-    await B.click('[data-join="1"]');
-    for (let i = 0; i < 100; i++) { await sleep(200); if (await A.js('!!document.querySelector(".battle")') && await B.js('!!document.querySelector(".battle")')) break; }
+    // ランダムマッチ (2026-11-03): A が 先に さがして 待ち合わせ、B が あとから さがす
+    await A.click('[data-random="1"]');
+    await sleep(6000);
+    await A.snap('random-wait');
+    await B.click('[data-random="1"]');
+    for (let i = 0; i < 300; i++) { await sleep(200); if (await A.js('!!document.querySelector(".battle")') && await B.js('!!document.querySelector(".battle")')) break; }
     if (!(await A.js('!!document.querySelector(".battle")'))) { errors.push(`つながらない: ${await B.js('document.querySelector(".room")?.textContent')}`); return; }
     console.log('オンラインテスト: つながった');
     await A.snap('battle');
@@ -115,6 +112,17 @@ async function main() {
         const [a, b] = [await step(A), await step(B)];
         if (a === 'done' && b === 'done') break;
         if (steps === 30) { await A.snap('mid'); await B.snap('mid'); }
+        // つなぎなおし (2026-11-03): とちゅうで B の つながりを 切る → つなぎなおして つづきから
+        if (steps === 40) {
+            await B.js('window.__net.drop(); true');
+            let note = false;
+            for (let i = 0; i < 30 && !note; i++) { await sleep(100); note = (await A.js('!!document.querySelector(".netnote")')) || (await B.js('!!document.querySelector(".netnote")')); }
+            if (note) { console.log('オンラインテスト: 切れた → つなぎなおし中'); await A.snap('reconnect'); }
+            let back = false;
+            for (let i = 0; i < 300 && !back; i++) { await sleep(200); back = !(await A.js('!!document.querySelector(".netnote")')) && !(await B.js('!!document.querySelector(".netnote")')); }
+            if (!back) errors.push('つなぎなおせなかった');
+            else console.log('オンラインテスト: つなぎなおした');
+        }
         await sleep(a === 'wait' && b === 'wait' ? 150 : 60);
     }
     await A.snap('result');

@@ -3,7 +3,7 @@
 // =====================================================================
 const KEY = 'koori-card-settings';
 export const SPEEDS = { slow: { name: 'ゆっくり', k: 1.6 }, normal: { name: 'ふつう', k: 1 }, fast: { name: 'はやい', k: 0.45 } };
-export const defaults = () => ({ name: 'あなた', sound: true, cpuSpeed: 'normal', fxSpeed: 'normal' });
+export const defaults = () => ({ name: 'あなた', sound: true, cpuSpeed: 'normal', fxSpeed: 'normal', tutorialDone: false });
 
 export function loadSettings(storage) {
     try {

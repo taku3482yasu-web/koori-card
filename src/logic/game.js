@@ -60,7 +60,7 @@ export class Game {
         const rand = opts.rand || Math.random;
         this.rand = rand;
         uidSeq = 0;   // カードの 番号を 毎回 1 から (オンライン対戦で 2 台の 番号を そろえる)
-        this.players = opts.players.map((o, i) => newPlayer(i, o.name, o.deck, !!o.cpu, rand, o.buddy, o.list, o.secret));
+        this.players = opts.players.map((o, i) => Object.assign(newPlayer(i, o.name, o.deck, !!o.cpu, rand, o.buddy, o.list, o.secret), { level: o.level || 'normal' }));
         this.first = opts.first ?? (rand() < 0.5 ? 0 : 1);
         this.active = this.first;
         this.turn = 0;
@@ -81,6 +81,11 @@ export class Game {
         const opts = req.options;
         if (!opts.length && !req.cancel) return null;
         if (p.cpu) {
+            // かんたん (2026-11-03): ときどき でたらめに えらぶ
+            if (p.level === 'easy' && this.rand() < 0.35) {
+                const all = [...opts.map((o) => o.value), ...(req.cancel ? [null] : [])];
+                if (all.length) return all[Math.floor(this.rand() * all.length)];
+            }
             let best = null;
             for (const o of opts) if (!best || (o.score ?? 0) > (best.score ?? 0)) best = o;
             if (req.cancel && (!best || (best.score ?? 0) < (req.cancelScore ?? -Infinity))) return null;

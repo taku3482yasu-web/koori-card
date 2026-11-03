@@ -119,6 +119,10 @@ async function main() {
     await sleep(100);
     await click('[data-mode="cpu"]');
     await sleep(100);
+    // CPU の 強さ (2026-11-03)
+    if (!(await js('document.querySelectorAll("[data-level]").length === 3'))) errors.push('CPU の 強さを えらぶ 画面が ない');
+    await click('[data-level="normal"]');
+    await sleep(100);
     if (!(await click('[data-battle="koori"]'))) throw new Error('デッキを えらぶ ボタンが ない');
     await sleep(400);
     // バディを 自分で えらぶ (2026-11-03): おすすめ では ない 2 番目を えらぶ
@@ -135,8 +139,17 @@ async function main() {
     let shotAsk = false;
     let dragged = false;
     const seen = { arrow: false, crack: false, item: false, grave: false, scene: false, chance: false, reveal: false };
+    let coached = 0;
     while (steps++ < 600) {
         if (await js('!!document.querySelector(".result")')) break;
+        // はじめての CPU 戦の チュートリアル (2026-11-03)
+        if (await js('!!document.querySelector(".coach")')) {
+            if (!coached) await snap('tutorial');
+            coached++;
+            await click('[data-coach="1"]');
+            await sleep(60);
+            continue;
+        }
         if (await js('!!document.querySelector(".ask")')) {
             if (!shotAsk) { await snap('ask'); shotAsk = true; }
             await click('.ask [data-opt="0"]');
@@ -221,6 +234,7 @@ async function main() {
     }
     console.log(`ブラウザのテスト: 演出 ${JSON.stringify(seen)}`);
     if (!seen.arrow) errors.push('こうげきの 矢印が 出なかった');
+    if (coached < 4) errors.push(`チュートリアルが 出ない (${coached})`);
     if (!seen.reveal) errors.push('使う カードが 大きく 出なかった');
     const result = await js('document.querySelector(".result h2")?.textContent');
     const turn = await js('document.querySelector(".turn")?.textContent');
@@ -272,6 +286,8 @@ async function packs() {
         await click('[data-screen="versus"]');
         await sleep(60);
         await click('[data-mode="cpu"]');
+        await sleep(100);
+        await click('[data-level="hard"]');
         await sleep(100);
         if (!(await js(`document.querySelector('[data-battle="${team}"]').textContent.includes('自分の デッキ')`))) errors.push('作った デッキが 対戦の デッキえらびに 出ない');
         else console.log(`ブラウザのテスト: ${team} の デッキに パックの カード No.${plus} を 入れた`);

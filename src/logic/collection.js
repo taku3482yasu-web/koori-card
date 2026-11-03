@@ -71,8 +71,11 @@ export function buyPack(c) {
 }
 
 // たいせんの 結果 → もらえた ポイント
-export function addResult(c, won) {
-    const n = won ? WIN_POINTS : LOSE_POINTS;
+// CPU の 強さで もらえる ポイントが かわる (2026-11-03。オンラインは ふつうと 同じ): [勝ち, 負け]
+export const LEVEL_POINTS = { easy: [50, 20], normal: [WIN_POINTS, LOSE_POINTS], hard: [150, 40] };
+export function addResult(c, won, level = 'normal') {
+    const [w, l] = LEVEL_POINTS[level] || LEVEL_POINTS.normal;
+    const n = won ? w : l;
     c.points += n;
     c.games++;
     if (won) c.wins++;

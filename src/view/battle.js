@@ -18,7 +18,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // opts: { onQuit, buddy, list: 自分の デッキ (カード番号), onResult(won) → 結果に 出す ことば (ポイント), settings,
 //         online: { net: { send, close, me }, seed, players: [部屋を 作った 人, 入った 人] の { name, deck, buddy, list } } }
 export function startBattle(root, myDeck, opts) {
-    const { onQuit, buddy = null, list = null, onResult = null, settings = {}, online = null } = opts;
+    const { onQuit, buddy = null, list = null, onResult = null, settings = {}, online = null, level = 'normal' } = opts;
+    let netNote = null;   // オンライン: つなぎなおし中の 知らせ
+    // はじめての CPU 戦の チュートリアル (2026-11-03 ユーザー指定): その 場面に なったら 1 つずつ 説明を 出す
+    const coach = opts.tutorial && !online ? { seen: {}, now: null, done: false } : null;
     const ME = online ? online.net.me : 0;
     const OP = 1 - ME;
     const cpuK = speedK(settings.cpuSpeed), fxK = speedK(settings.fxSpeed);
@@ -45,7 +48,7 @@ export function startBattle(root, myDeck, opts) {
             ? online.players.map((x) => ({ name: x.name, deck: x.deck, buddy: x.buddy, list: x.list, secret: x.secret }))
             : [
                 { name: settings.name || 'あなた', deck: myDeck, buddy, list, secret: opts.secret },
-                { name: `CPU（${DECKS[cpuDeck].name}）`, deck: cpuDeck, cpu: true }
+                { name: `CPU（${DECKS[cpuDeck].name}${level !== 'normal' ? `・${level === 'easy' ? 'かんたん' : 'つよい'}` : ''}）`, deck: cpuDeck, cpu: true, level }
             ],
         rand: online ? seeded(online.seed) : undefined,
         ask: online ? link.askFn(localAsk) : (pid, req) => localAsk(req),
@@ -67,7 +70,8 @@ export function startBattle(root, myDeck, opts) {
         link.onQuit = (m) => { g.forfeit(cpu(), m.why || '相手が やめた'); busy = false; render(); };
         link.onDesync = (why) => { trouble = `対戦の ようすが ずれたので おわります（${why}）`; render(); };
         online.net.onMessage = (m) => link.receive(m);
-        online.net.onClose = (why) => { if (g.winner === null) { g.forfeit(cpu(), why); busy = false; render(); } };
+        online.net.onClose = (why) => { netNote = null; if (g.winner === null) { g.forfeit(cpu(), why); busy = false; render(); } };
+        online.net.onStatus = (text) => { netNote = text; render(); };   // つなぎなおし中 (2026-11-03)
         online.net.flush?.();   // 画面が できる 前に とどいた ぶん
     }
 
@@ -206,7 +210,7 @@ export function startBattle(root, myDeck, opts) {
 <div class="battle">
     ${side(cpu(), false)}
     <div class="center">
-        <div class="turn">${g.turn} ターン目　<b>${status}</b></div>
+        <div class="turn">${g.turn} ターン目　<b>${status}</b>${netNote ? `<span class="netnote">${esc(netNote)}</span>` : ''}</div>
         <button class="log" data-log="1" title="ログを ぜんぶ 見る"><ol>${g.logs.slice(-4).map((l) => `<li>${esc(l)}</li>`).join('')}</ol><span class="more">ぜんぶ 見る ▸</span></button>
     </div>
     ${side(p, true)}
@@ -220,10 +224,30 @@ ${graveOf !== null ? graveHTML() : ''}
 ${logOpen ? logHTML() : ''}
 ${detail ? detailHTML() : ''}
 ${asking ? askHTML() : ''}
+${coachHTML()}
 ${g.winner !== null ? resultHTML() : ''}
 ${trouble && g.winner === null ? `<div class="sheet result"><div class="sheet-in"><h2>ごめんね</h2><p>${esc(trouble)}</p><div class="acts"><button class="act sub quit">もどる</button></div></div></div>` : ''}`;
         const full = root.querySelector('.fulllog');
         if (full) full.scrollTop = scroll ?? full.scrollHeight;   // 開いたときは いちばん 下 (さいしん)
+    }
+
+    // ----- チュートリアル -----
+    const TIPS = [
+        ['goal', () => true, 'このゲームの かちかた', '相手の シールド（5 枚）を ぜんぶ わって、シールドが 0 枚の 相手に こうげきが 通ったら かち！'],
+        ['play', () => myTurn() && g.phase === 'main' && me().hand.some((c) => g.canPlay(me(), c)), 'カードを 出そう', '光っている 手札は 出せる カード。タップして「場に 出す」か、上へ ドラッグ。モンスターは 1 ターンに 1 体まで。'],
+        ['lv', () => myTurn() && me().hand.some((c) => g.needLv(me(), c) > me().lv), 'Lv（左上の 丸い 数字）', 'いまの Lv より 大きい カードは まだ 出せない。自分の シールドが 2・4 枚 割れると Lv アップ。'],
+        ['attack', () => myTurn() && me().field.some((u) => g.canAttack(u)), 'こうげき しよう', 'こうげき できる モンスターは 光る。タップして「こうげき」→ 相手の モンスターか シールドを えらぶ。出した ターンは ふつう こうげき できない。'],
+        ['phase', () => myTurn() && g.phase === 'attack', 'アタックフェイズ', '1 回でも こうげきすると アタックフェイズ。その ターンは もう カードを 使えない。カードは こうげきの 前に！'],
+        ['end', () => myTurn() && !me().hand.some((c) => g.canPlay(me(), c)) && !me().field.some((u) => g.canAttack(u)), 'ターン終了', 'やる ことが なくなったら 右下の「ターン終了」を おそう。'],
+        ['shield', () => me().broken > 0, 'シールドが 割れた！', '割れた シールドは 手札に 入る。⚡ドタバタトリガーの カードなら その場で ただで 使える。'],
+        ['block', () => asking && /ブロックする/.test(asking.req.title), 'ブロック', 'ブロッカー（盾の マーク）は、相手の こうげきを かわりに うけられる。パワーが 大きければ 返りうち！']
+    ];
+    function coachHTML() {
+        if (!coach || g.winner !== null) return '';
+        if (!coach.now) coach.now = TIPS.find(([id, cond]) => !coach.seen[id] && cond()) || null;
+        if (!coach.now) return '';
+        const [, , title, text] = coach.now;
+        return `<div class="coach"><b>📘 ${esc(title)}</b><p>${esc(text)}</p><button class="act" data-coach="1">わかった</button></div>`;
     }
 
     function graveHTML() {
@@ -354,6 +378,13 @@ ${trouble && g.winner === null ? `<div class="sheet result"><div class="sheet-in
         if (dragged) return;
         const b = e.target.closest('button, [data-close]');
         if (!b) return;
+        if (b.dataset.coach) {
+            coach.seen[coach.now[0]] = true;
+            coach.now = null;
+            if (!coach.done && TIPS.every(([id]) => coach.seen[id] || id === 'block' || id === 'shield')) { coach.done = true; opts.onTutorialDone?.(); }
+            render();
+            return;
+        }
         if (asking) {
             if (b.dataset.opt === undefined) return;
             const i = +b.dataset.opt;

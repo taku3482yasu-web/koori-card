@@ -104,3 +104,12 @@ test('保存して 読みなおせる (こわれていたら はじめから)', 
     assert.equal(loadCollection(storage).points, 0);
     assert.equal(loadCollection(null).packs, FREE_PACKS);
 });
+
+test('CPU の 強さで もらえる ポイントが かわる (2026-11-03): かんたん 50/20・ふつう 100/30・つよい 150/40', () => {
+    const c = newCollection();
+    assert.equal(addResult(c, true, 'easy'), 50);
+    assert.equal(addResult(c, false, 'easy'), 20);
+    assert.equal(addResult(c, true, 'hard'), 150);
+    assert.equal(addResult(c, false, 'hard'), 40);
+    assert.equal(addResult(c, true), 100);
+});
