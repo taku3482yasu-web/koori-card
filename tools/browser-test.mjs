@@ -98,6 +98,27 @@ async function main() {
     await sleep(800);
     await snap('title');
 
+    // メイン画面 (2026-11-03): 対戦する → CPU → デッキ
+    for (const id of ['versus', 'shop', 'help', 'cards', 'deck', 'settings']) if (!(await js(`!!document.querySelector('.mainmenu [data-screen="${id}"]')`))) errors.push(`メイン画面に ${id} が ない`);
+    await click('[data-screen="help"]');
+    await sleep(100);
+    if (!(await js('document.querySelectorAll(".help details").length >= 8'))) errors.push('ヘルプが ない');
+    await snap('help');
+    await click('[data-screen="title"]');
+    await click('[data-screen="settings"]');
+    await sleep(100);
+    await js(`(() => { const i = document.querySelector('#name'); i.value = 'テスト'; i.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await click('[data-set="fxSpeed"][data-val="fast"]');
+    await click('[data-set="cpuSpeed"][data-val="fast"]');
+    await sleep(100);
+    await snap('settings');
+    await click('[data-screen="title"]');
+    await sleep(100);
+    if (!(await js('document.querySelector(".wallet").textContent.includes("テスト")'))) errors.push('設定の 名前が 出ない');
+    await click('[data-screen="versus"]');
+    await sleep(100);
+    await click('[data-mode="cpu"]');
+    await sleep(100);
     if (!(await click('[data-battle="koori"]'))) throw new Error('デッキを えらぶ ボタンが ない');
     await sleep(400);
     // バディを 自分で えらぶ (2026-11-03): おすすめ では ない 2 番目を えらぶ
@@ -222,7 +243,7 @@ async function packs() {
     if (await js('!!document.querySelector("[data-open=\\"1\\"]:not([disabled])")')) errors.push('パックが 3 こより 多い');
     await click('[data-screen="title"]');
     await sleep(100);
-    await click('[data-screen="collection"]');
+    await click('[data-screen="cards"]');
     await sleep(100);
     const got = await js('document.querySelector(".top h1 small").textContent');
     console.log(`ブラウザのテスト: コレクション ${got}`);
@@ -230,7 +251,7 @@ async function packs() {
     await click('[data-screen="title"]');
     await sleep(100);
     // デッキ作り: パックの カードが 入れられる チームを さがして 1 枚 入れかえる
-    await click('[data-screen="edit"]');
+    await click('[data-screen="deck"]');
     for (const team of ['bariki', 'koori', 'oni', 'ask3', '5dx', 'muscle', 'bartas', 'kemono']) {
         await click(`[data-editteam="${team}"]`);
         await sleep(100);
@@ -245,7 +266,11 @@ async function packs() {
         await sleep(100);
         await click('[data-screen="title"]');
         await sleep(100);
-        if (!(await js(`document.querySelector('[data-battle="${team}"]').textContent.includes('自分の デッキ')`))) errors.push('作った デッキが タイトルに 出ない');
+        await click('[data-screen="versus"]');
+        await sleep(60);
+        await click('[data-mode="cpu"]');
+        await sleep(100);
+        if (!(await js(`document.querySelector('[data-battle="${team}"]').textContent.includes('自分の デッキ')`))) errors.push('作った デッキが 対戦の デッキえらびに 出ない');
         else console.log(`ブラウザのテスト: ${team} の デッキに パックの カード No.${plus} を 入れた`);
         return;
     }

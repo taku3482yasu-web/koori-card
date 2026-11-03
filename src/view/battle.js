@@ -1,19 +1,29 @@
 // =====================================================================
-// たいせんの 画面 (上が CPU・下が 自分)。カードを タップすると 大きく 出て、出す・こうげき を えらぶ
+// たいせんの 画面 (上が 相手・下が 自分)。カードを タップすると 大きく 出て、出す・こうげき を えらぶ
 // 選ぶ 場面は ルールから ask で 聞かれるので、まんなかに えらぶ 画面を 出す
+// 相手は CPU か オンラインの 人 (logic/lockstep.js。自分の 番号 ME は 部屋を 作った 人 0・入った 人 1)
 // =====================================================================
 import { Game } from '../logic/game.js';
 import { cpuTurn } from '../logic/cpu.js';
 import { DECKS } from '../data/cards.js';
 import { cardHTML, pic, emblem } from './card.js';
 import { artURL } from '../art/index.js';
+import { Lockstep, seeded } from '../logic/lockstep.js';
+import { speedK } from '../logic/settings.js';
+import { play as sfx } from './sound.js';
 
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// opts: { onQuit, buddy, list: 自分の デッキ (カード番号), onResult(won) → 結果に 出す ことば (ポイント) }
+// opts: { onQuit, buddy, list: 自分の デッキ (カード番号), onResult(won) → 結果に 出す ことば (ポイント), settings,
+//         online: { net: { send, close, me }, seed, players: [部屋を 作った 人, 入った 人] の { name, deck, buddy, list } } }
 export function startBattle(root, myDeck, opts) {
-    const { onQuit, buddy = null, list = null, onResult = null } = opts;
+    const { onQuit, buddy = null, list = null, onResult = null, settings = {}, online = null } = opts;
+    const ME = online ? online.net.me : 0;
+    const OP = 1 - ME;
+    const cpuK = speedK(settings.cpuSpeed), fxK = speedK(settings.fxSpeed);
+    const link = online ? new Lockstep(online.net.send, ME) : null;
+    let trouble = null;    // オンラインで ずれた とき
     let resultNote = null;   // 1 回だけ 結果を 知らせる
     // CPU は ほかの スターターデッキから ランダム (2026-11-03 デッキ 8 つ)
     const others = Object.keys(DECKS).filter((id) => id !== myDeck);
@@ -25,48 +35,72 @@ export function startBattle(root, myDeck, opts) {
     let graveOf = null;    // 墓地を 見ている プレイヤー (0 か 1)
     let logOpen = false;   // ログを ぜんぶ 見ている
 
-    const me = () => g.players[0];
-    const cpu = () => g.players[1];
-    const myTurn = () => g.winner === null && g.active === 0 && !busy;
+    const me = () => g.players[ME];
+    const cpu = () => g.players[OP];   // 相手 (CPU か オンラインの 人)
+    const myTurn = () => g.winner === null && g.active === ME && !busy && !trouble;
+    const localAsk = (req) => new Promise((resolve) => { asking = { req, resolve }; render(); });
 
     g = new Game({
-        players: [
-            { name: 'あなた', deck: myDeck, buddy, list },
-            { name: `CPU（${DECKS[cpuDeck].name}）`, deck: cpuDeck, cpu: true }
-        ],
-        ask: (pid, req) => new Promise((resolve) => { asking = { req, resolve }; render(); }),
+        players: online
+            ? online.players.map((x) => ({ name: x.name, deck: x.deck, buddy: x.buddy, list: x.list }))
+            : [
+                { name: settings.name || 'あなた', deck: myDeck, buddy, list },
+                { name: `CPU（${DECKS[cpuDeck].name}）`, deck: cpuDeck, cpu: true }
+            ],
+        rand: online ? seeded(online.seed) : undefined,
+        ask: online ? link.askFn(localAsk) : (pid, req) => localAsk(req),
         onChange: () => render(),
-        delay: () => (g && g.active === 1 ? wait(450) : Promise.resolve()),
+        delay: () => (g && !online && g.active === OP ? wait(450 * cpuK) : Promise.resolve()),
         fx: (ev) => fx(ev)
     });
+    // 行動 (オンラインでは 相手にも 送る)
+    const A = online ? link.actor(g) : g;
+    // 効果音 (ログの ことばで 鳴らす)
+    const log0 = g.log.bind(g);
+    g.log = (m) => {
+        if (m.includes('シールドが 割れた')) sfx('break');
+        else if (m.startsWith('⚡')) sfx('trigger');
+        else if (m.startsWith('⚔')) sfx('chance');
+        else if (/を 出した|を 使った|に 付けた/.test(m)) sfx('card');
+        log0(m);
+    };
+    if (online) {
+        link.onQuit = (m) => { g.forfeit(cpu(), m.why || '相手が やめた'); busy = false; render(); };
+        link.onDesync = (why) => { trouble = `対戦の ようすが ずれたので おわります（${why}）`; render(); };
+        online.net.onMessage = (m) => link.receive(m);
+        online.net.onClose = (why) => { if (g.winner === null) { g.forfeit(cpu(), why); busy = false; render(); } };
+        online.net.flush?.();   // 画面が できる 前に とどいた ぶん
+    }
 
     // ---------- 演出 (こうげきの 矢印・やられて 割れる) ----------
-    const keyOf = (u) => `${u.owner === 0 ? 'f' : 'e'}:${u.uid}`;
+    const keyOf = (u) => `${u.owner === ME ? 'f' : 'e'}:${u.uid}`;
     const elOf = (u) => root.querySelector(`.zone [data-key="${keyOf(u)}"]`);
     async function fx(ev) {
         render();
         if (ev.type === 'attack') {
             const from = elOf(ev.unit);
             const to = ev.target === 'shield'
-                ? root.querySelector(`.side.${ev.unit.owner === 0 ? 'enemy' : 'mine'} .shields`)
+                ? root.querySelector(`.side.${ev.unit.owner === ME ? 'enemy' : 'mine'} .shields`)
                 : elOf(ev.target);
             if (!from || !to) return;
             const a = from.getBoundingClientRect();
             const b = to.getBoundingClientRect();
             const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svg.setAttribute('class', `arrow ${ev.unit.owner === 0 ? 'me' : 'cpu'}`);
+            svg.setAttribute('class', `arrow ${ev.unit.owner === ME ? 'me' : 'cpu'}`);
             svg.innerHTML = `<defs><marker id="ah" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>
 <line x1="${a.x + a.width / 2}" y1="${a.y + a.height / 2}" x2="${b.x + b.width / 2}" y2="${b.y + b.height / 2}" marker-end="url(#ah)"/>`;
             from.classList.add('attacking');
             document.body.append(svg);
-            await wait(650);
+            sfx('attack');
+            await wait(650 * fxK);
             svg.remove();
             from.classList.remove('attacking');
         } else if (ev.type === 'destroy') {
             const el = elOf(ev.unit);
             if (!el) return;
             el.classList.add('crack');
-            await wait(600);
+            sfx('destroy');
+            await wait(600 * fxK);
         }
     }
 
@@ -79,12 +113,16 @@ export function startBattle(root, myDeck, opts) {
         await cpuLoop();
         render();
     }
+    // 相手の ターン (CPU が 考える か、オンラインの 相手の 行動を 待つ)
     async function cpuLoop() {
-        while (g.winner === null && g.active === 1) {
-            busy = true;
-            render();
-            await cpuTurn(g, cpu());
-        }
+        try {
+            while (g.winner === null && g.active === OP && !trouble) {
+                busy = true;
+                render();
+                if (online) await link.remoteTurn(g);
+                else await cpuTurn(g, cpu());
+            }
+        } catch (e) { if (e.message !== 'desync') throw e; }
         busy = false;
     }
 
@@ -92,7 +130,7 @@ export function startBattle(root, myDeck, opts) {
     function mini(card, { unit = null, cls = '', key = '', tag = 'button' } = {}) {
         const pw = unit ? g.power(unit) : card.power;
         const diff = unit ? pw - card.power : 0;
-        const ready = unit && unit.owner === 0 && g.active === 0 && g.canAttack(unit);
+        const ready = unit && unit.owner === ME && g.active === ME && g.canAttack(unit);
         return `<${tag} class="mini ${card.kind} ${cls} ${ready ? 'ready' : ''} ${unit?.tapped ? 'tapped' : ''}" data-key="${key}">
     <span class="pic">${pic(card)}</span>
     <span class="lv">${card.lv}</span>
@@ -129,7 +167,7 @@ export function startBattle(root, myDeck, opts) {
         if (!g) return;
         const scroll = root.querySelector('.fulllog')?.scrollTop;
         const p = me();
-        const status = g.winner !== null ? '' : g.active === 0 ? (busy ? '…' : g.phase === 'main' ? 'あなたの ターン（メインフェイズ）' : 'あなたの ターン（アタックフェイズ：カードは 使えない）') : 'CPU の ターン…';
+        const status = g.winner !== null ? '' : g.active === ME ? (busy ? '…' : g.phase === 'main' ? 'あなたの ターン（メインフェイズ）' : 'あなたの ターン（アタックフェイズ：カードは 使えない）') : online ? '相手の ターン…' : 'CPU の ターン…';
         root.innerHTML = `
 <div class="battle">
     ${side(cpu(), false)}
@@ -138,9 +176,9 @@ export function startBattle(root, myDeck, opts) {
         <button class="log" data-log="1" title="ログを ぜんぶ 見る"><ol>${g.logs.slice(-4).map((l) => `<li>${esc(l)}</li>`).join('')}</ol><span class="more">ぜんぶ 見る ▸</span></button>
     </div>
     ${side(p, true)}
-    <div class="hand">${p.hand.map((c) => mini(c, { key: `h:${c.uid}`, cls: g.active === 0 && g.canPlay(p, c) ? 'can' : '' })).join('')}</div>
+    <div class="hand">${p.hand.map((c) => mini(c, { key: `h:${c.uid}`, cls: g.active === ME && g.canPlay(p, c) ? 'can' : '' })).join('')}</div>
     <div class="bar">
-        <button class="quit">やめる</button>
+        <button class="quit">${online && g.winner === null ? 'こうさん' : 'やめる'}</button>
         <button class="end" ${myTurn() ? '' : 'disabled'}>ターン終了</button>
     </div>
 </div>
@@ -148,7 +186,8 @@ ${graveOf !== null ? graveHTML() : ''}
 ${logOpen ? logHTML() : ''}
 ${detail ? detailHTML() : ''}
 ${asking ? askHTML() : ''}
-${g.winner !== null ? resultHTML() : ''}`;
+${g.winner !== null ? resultHTML() : ''}
+${trouble && g.winner === null ? `<div class="sheet result"><div class="sheet-in"><h2>ごめんね</h2><p>${esc(trouble)}</p><div class="acts"><button class="act sub quit">もどる</button></div></div></div>` : ''}`;
         const full = root.querySelector('.fulllog');
         if (full) full.scrollTop = scroll ?? full.scrollHeight;   // 開いたときは いちばん 下 (さいしん)
     }
@@ -198,11 +237,11 @@ ${g.winner !== null ? resultHTML() : ''}`;
     }
 
     function resultHTML() {
-        const won = g.winner === 0;
-        if (resultNote === null) resultNote = onResult?.(won) || '';
+        const won = g.winner === ME;
+        if (resultNote === null) { resultNote = onResult?.(won) || ''; sfx(won ? 'win' : 'lose'); }
         return `<div class="sheet result"><div class="sheet-in">
     <h2>${won ? 'かち！' : 'まけ…'}</h2><p>${esc(g.reason)}</p>${resultNote ? `<p class="points">${esc(resultNote)}</p>` : ''}
-    <div class="acts"><button class="act" data-again="1">もう いちど</button><button class="act sub quit">もどる</button></div>
+    <div class="acts">${online ? '' : '<button class="act" data-again="1">もう いちど</button>'}<button class="act sub quit">もどる</button></div>
 </div></div>`;
     }
 
@@ -272,7 +311,7 @@ ${g.winner !== null ? resultHTML() : ''}`;
         root.querySelector('.side.mine')?.classList.remove('drop');
         dragged = true;
         setTimeout(() => { dragged = false; }, 0);
-        if (!cancel && overMine(e.clientX, e.clientY) && myTurn()) await run(() => g.play(me(), card, from));
+        if (!cancel && overMine(e.clientX, e.clientY) && myTurn()) await run(() => A.play(me(), card, from));
     }
     root.onpointerup = (e) => endDrag(e, false);
     root.onpointercancel = (e) => endDrag(e, true);
@@ -291,7 +330,20 @@ ${g.winner !== null ? resultHTML() : ''}`;
             return;
         }
         if (b.dataset.again) { startBattle(root, myDeck, opts); return; }
-        if (b.classList.contains('quit')) { onQuit(); return; }
+        if (b.classList.contains('quit')) {
+            if (online) {
+                if (g.winner === null && !trouble) {
+                    if (!window.confirm('こうさん する？（まけに なります）')) return;
+                    online.net.send({ t: 'quit', why: '相手が こうさんした' });
+                    g.forfeit(me(), 'こうさん');
+                    render();
+                    return;
+                }
+                online.net.close();
+            }
+            onQuit();
+            return;
+        }
         if (b.dataset.close && e.target === b) {   // いちばん 上の 画面だけ とじる
             if (detail) detail = null;
             else if (graveOf !== null) graveOf = null;
@@ -301,17 +353,17 @@ ${g.winner !== null ? resultHTML() : ''}`;
         }
         if (b.dataset.grave !== undefined) { graveOf = +b.dataset.grave; render(); return; }
         if (b.dataset.log) { logOpen = true; render(); return; }
-        if (b.classList.contains('end')) { if (myTurn()) await run(() => g.endTurn()); return; }
+        if (b.classList.contains('end')) { if (myTurn()) await run(() => A.endTurn()); return; }
         if (b.dataset.act === 'play') {
             const { card, from } = detail;
-            await run(() => g.play(me(), card, from));
+            await run(() => A.play(me(), card, from));
             return;
         }
         if (b.dataset.act === 'attack') {
             const u = detail.unit;
             detail = null;
             const t = await pickTarget(u);
-            if (t) await run(() => g.attack(u, t));
+            if (t) await run(() => A.attack(u, t));
             else render();
             return;
         }

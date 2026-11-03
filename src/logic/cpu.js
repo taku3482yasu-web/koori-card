@@ -13,26 +13,27 @@ function wantCard(g, p, c) {
 }
 
 // 1 つ 出す。出したら true
-async function playOne(g, p) {
+async function playOne(g, p, A) {
     const pool = [...p.hand.map((c) => [c, 'hand']), ...(p.buddy ? [[p.buddy, 'buddy']] : [])]
         .filter(([c]) => g.canPlay(p, c));
     const magic = pool.find(([c]) => c.kind === 'magic' && wantCard(g, p, c));
-    if (magic) return g.play(p, magic[0], magic[1]);
+    if (magic) return A.play(p, magic[0], magic[1]);
     const scene = pool.find(([c]) => c.kind === 'field' && wantCard(g, p, c));
-    if (scene) return g.play(p, scene[0], scene[1]);
+    if (scene) return A.play(p, scene[0], scene[1]);
     const monsters = pool.filter(([c]) => c.kind === 'monster')
         .filter(([c]) => !(c.no === 48 && p.hand.length < 3))   // 大魔王ASO は 手札に よゆうが あるとき
         .sort((a, b) => b[0].power - a[0].power || (a[1] === 'hand' ? -1 : 1));
-    if (monsters.length) return g.play(p, monsters[0][0], monsters[0][1]);
+    if (monsters.length) return A.play(p, monsters[0][0], monsters[0][1]);
     const item = pool.find(([c]) => c.kind === 'item');
-    if (item) return g.play(p, item[0], item[1]);
+    if (item) return A.play(p, item[0], item[1]);
     return false;
 }
 
-export async function cpuTurn(g, p) {
+// A: 行動を する もの (ふつうは g。オンライン対戦では 相手に 送りながら 動かす)
+export async function cpuTurn(g, p, A = g) {
     for (let i = 0; i < 20 && g.winner === null; i++) {
         await g.delay();
-        if (!(await playOne(g, p))) break;
+        if (!(await playOne(g, p, A))) break;
     }
     for (let i = 0; i < 20 && g.winner === null; i++) {
         const attacker = p.field.filter((u) => g.canAttack(u)).sort((a, b) => g.power(b) - g.power(a))[0];
@@ -42,10 +43,10 @@ export async function cpuTurn(g, p) {
         const target = prey || (g.canTarget(attacker, 'shield') ? 'shield' : null);
         if (!target) { attacker.attacks = g.maxAttacks(attacker); continue; }   // 攻撃できる 相手が いない
         await g.delay();
-        await g.attack(attacker, target);
+        await A.attack(attacker, target);
     }
     if (g.winner === null) {
         await g.delay();
-        await g.endTurn();
+        await A.endTurn();
     }
 }

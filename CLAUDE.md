@@ -8,5 +8,5 @@
 - カードの見た目はユーザーのデザイン案（モンスター＝紺と水色・魔法＝紫・アイテム＝緑・左上の丸い数字・効果欄にドタバタトリガーの黄色いマーク）。
 - 前作のキャラの絵は、前作（koori-dungeon など）の絵と設定を写す。`tools/extract-art.mjs` で `src/art/legacy-art.js` を作る（手で直さない）。どのカードにどの絵かは `src/art/index.js` の CARD_ART。前作にない絵は `src/art/new-art.js`、技（そのキャラが技を放つところ。キャラは前作の絵）と場面は `src/art/scenes.js`。
 - ルールは `src/logic/game.js`（画面に ふれない・選ぶ 場面は ask で 聞く）、CPU は `src/logic/cpu.js`、画面は `src/view/`。
-- テスト: `npm test` と `npm run test:browser`（Chrome）。main に push すると GitHub Pages に公開される。
+- テスト: `npm test` と `npm run test:browser`（Chrome）。オンライン対戦は `npm run test:online`（本物の PeerJS で 2 ページを つなぐ。インターネットが いるので コミット前には 入れない）。main に push すると GitHub Pages に公開される。
 - 変更ができてテストが通ったら、聞かずに commit して main に push する（2026-10-29 ユーザー指定）。テストが落ちたら push しない。

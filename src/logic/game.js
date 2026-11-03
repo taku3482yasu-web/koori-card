@@ -56,6 +56,7 @@ export class Game {
     constructor(opts) {
         const rand = opts.rand || Math.random;
         this.rand = rand;
+        uidSeq = 0;   // カードの 番号を 毎回 1 から (オンライン対戦で 2 台の 番号を そろえる)
         this.players = opts.players.map((o, i) => newPlayer(i, o.name, o.deck, !!o.cpu, rand, o.buddy, o.list));
         this.first = opts.first ?? (rand() < 0.5 ? 0 : 1);
         this.active = this.first;
@@ -92,6 +93,15 @@ export class Game {
         throw new GameOver(w.id, reason);
     }
     win(p, reason) { this.lose(this.opp(p), reason); }
+    // こうさん・切断 (投げずに 決着だけ つける)
+    forfeit(p, reason) {
+        if (this.winner !== null) return;
+        const w = this.opp(p);
+        this.winner = w.id;
+        this.reason = reason;
+        this.log(`${w.name} の かち！（${reason}）`);
+        this.onChange();
+    }
     takeTop(p) {   // 山札の 上から 1 枚。0 枚に なった 瞬間に 負け
         const c = p.deck.pop();
         if (p.deck.length === 0) {
