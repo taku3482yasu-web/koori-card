@@ -5,6 +5,7 @@
 // =====================================================================
 import { Game } from '../logic/game.js';
 import { cpuTurn } from '../logic/cpu.js';
+import { cpuDeckList } from '../logic/cpu-decks.js';
 import { DECKS, SECRET } from '../data/cards.js';
 import { cardHTML, pic, emblem } from './card.js';
 import { artURL } from '../art/index.js';
@@ -48,7 +49,7 @@ export function startBattle(root, myDeck, opts) {
             ? online.players.map((x) => ({ name: x.name, deck: x.deck, buddy: x.buddy, list: x.list, secret: x.secret }))
             : [
                 { name: settings.name || 'あなた', deck: myDeck, buddy, list, secret: opts.secret },
-                { name: `CPU（${DECKS[cpuDeck].name}${level !== 'normal' ? `・${level === 'easy' ? 'かんたん' : 'つよい'}` : ''}）`, deck: cpuDeck, cpu: true, level }
+                { name: `CPU（${DECKS[cpuDeck].name}${level !== 'normal' ? `・${level === 'easy' ? 'かんたん' : 'つよい'}` : ''}）`, deck: cpuDeck, cpu: true, list: cpuDeckList(cpuDeck, level) }
             ],
         rand: online ? seeded(online.seed) : undefined,
         ask: online ? link.askFn(localAsk) : (pid, req) => localAsk(req),

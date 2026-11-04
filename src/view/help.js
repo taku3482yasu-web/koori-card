@@ -42,7 +42,7 @@ export const HELP = [
 </ul>`],
     ['バディ', `<p>デッキとは べつに、はじめから 使える 1 枚。たいせんの 前に チームの モンスターから えらぶ。</p>`],
     ['ポイントと パック', `
-<p>たいせん（CPU・オンライン）で 勝つと <b>${WIN_POINTS}</b>、負けても <b>${LOSE_POINTS}</b> ポイント（CPU が かんたんなら 勝ち ${LEVEL_POINTS.easy[0]}・負け ${LEVEL_POINTS.easy[1]}、つよいなら 勝ち ${LEVEL_POINTS.hard[0]}・負け ${LEVEL_POINTS.hard[1]}）。ショップで <b>${PACK_PRICE} ポイント = 1 パック</b>。はじめに ${FREE_PACKS} パック もらえる。</p>
+<p>たいせん（CPU・オンライン）で 勝つと <b>${WIN_POINTS}</b>、負けても <b>${LOSE_POINTS}</b> ポイント（CPU の 強さは デッキの 強さ。かんたんなら 勝ち ${LEVEL_POINTS.easy[0]}・負け ${LEVEL_POINTS.easy[1]}、つよいなら 勝ち ${LEVEL_POINTS.hard[0]}・負け ${LEVEL_POINTS.hard[1]}）。ショップで <b>${PACK_PRICE} ポイント = 1 パック</b>。はじめに ${FREE_PACKS} パック もらえる。</p>
 <p>1 パック 5 枚（N ×3・U ×1・R 以上 ×1）。SR 以上は まれに <b>シークレット</b>（SR ブラック・HR プラチナ・OR 別絵柄）。</p>`],
     ['デッキ', `<p>「デッキ」で チームを えらんで、カードを 入れかえる。${DECK_SIZE} 枚・同じ カードは 4 枚まで。スターターの カードは 自由に 使えて、パックの カードは 持っている 枚数まで。</p>`],
     ['オンライン対戦', `

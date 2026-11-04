@@ -8,7 +8,7 @@ import { startBattle } from './view/battle.js';
 import { HELP } from './view/help.js';
 import { play as sfx, setSound } from './view/sound.js';
 import { buddyChoices } from './logic/game.js';
-import { LEVELS } from './logic/cpu.js';
+import { LEVELS } from './logic/cpu-decks.js';
 import {
     PACK_PRICE, PACK_CARDS, DECK_SIZE, LEVEL_POINTS, loadCollection, saveCollection, newCollection, openPack, buyPack, addResult, has, ownedCount,
     deckOf, deckErrors, deckLimit, deckPool, saveDeck, resetDeck
@@ -24,7 +24,8 @@ setSound(settings.sound);
 
 let screen = 'title';
 let mode = 'cpu';      // 対戦の 相手: cpu / online
-let level = 'normal';  // CPU の 強さ (2026-11-03): easy / normal / hard
+let level = 'normal';  // CPU の 強さ = デッキの 強さ (2026-11-04): easy / normal / hard
+const LEVEL_NOTES = { easy: '弱めの デッキ', normal: 'スターターデッキ', hard: 'レアカード入り' };
 let pickDeck = null;   // 対戦で つかう デッキ
 let pickBuddy = null;
 let room = null;       // オンライン: { status, code, error, handle, joining }
@@ -75,8 +76,8 @@ const SCREENS = {
 </nav>`,
     // CPU の 強さ (2026-11-03 ユーザー指定)
     cpulevel: () => `
-<header class="top"><h1>CPU と 対戦<small>CPU の 強さを えらんでね</small></h1>${back('versus')}</header>
-<nav class="mainmenu two">${Object.entries(LEVELS).map(([id, name]) => `<button class="menubtn" data-level="${id}"><span class="icon">${id === 'easy' ? '🌱' : id === 'normal' ? '⚔' : '🔥'}</span>${name}<small>勝ち ${LEVEL_POINTS[id][0]}・負け ${LEVEL_POINTS[id][1]} ポイント</small></button>`).join('')}</nav>`,
+<header class="top"><h1>CPU と 対戦<small>CPU の デッキの 強さを えらんでね</small></h1>${back('versus')}</header>
+<nav class="mainmenu two">${Object.entries(LEVELS).map(([id, name]) => `<button class="menubtn" data-level="${id}"><span class="icon">${id === 'easy' ? '🌱' : id === 'normal' ? '⚔' : '🔥'}</span>${name}<small>${LEVEL_NOTES[id]}・勝ち ${LEVEL_POINTS[id][0]}・負け ${LEVEL_POINTS[id][1]} ポイント</small></button>`).join('')}</nav>`,
     pickdeck: () => `
 <header class="top"><h1>${mode === 'online' ? 'オンライン対戦' : `CPU と 対戦（${LEVELS[level]}）`}<small>つかう デッキを えらんでね</small></h1>${back(mode === 'online' ? 'versus' : 'cpulevel')}</header>
 <div class="decks">${deckButtons('battle')}</div>`,

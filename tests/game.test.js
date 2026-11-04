@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, starterDeck, DECK_SIZE } from '../src/logic/game.js';
 import { cpuTurn } from '../src/logic/cpu.js';
-import { cardByNo, DECKS, CARDS } from '../src/data/cards.js';
+import { cardByNo, DECKS, CARDS, fitsDeck } from '../src/data/cards.js';
+import { cpuDeckList } from '../src/logic/cpu-decks.js';
 
 function seeded(seed) {
     return () => {
@@ -386,12 +387,19 @@ test('シークレット: 持っている 枚数まで たいせんでも シー
     assert.ok(!g.players[1].deck.some((c) => c.secret));
 });
 
-test('CPU の 強さ (2026-11-03): かんたん・つよいでも 最後まで 決着する', async () => {
-    for (const [la, lb] of [['easy', 'hard'], ['hard', 'easy'], ['easy', 'easy']]) {
-        const g = new Game({ players: [{ name: 'A', deck: 'koori', cpu: true, level: la }, { name: 'B', deck: 'oni', cpu: true, level: lb }], rand: seeded(17) });
-        await g.start();
-        for (let t = 0; t < 300 && g.winner === null; t++) await cpuTurn(g, g.players[g.active]);
-        assert.notEqual(g.winner, null, `${la} vs ${lb}`);
-        assert.equal(g.players[0].level, la);
+test('CPU の 強さ (2026-11-04): デッキだけが かわる。どれも 50 枚で 最後まで 決着する', async () => {
+    for (const level of ['easy', 'normal', 'hard']) {
+        for (const team of Object.keys(DECKS)) {
+            const list = cpuDeckList(team, level);
+            assert.equal(list.length, 50, `${team} ${level}`);
+            const copies = {};
+            for (const no of list) copies[no] = (copies[no] || 0) + 1;
+            assert.ok(Object.values(copies).every((n) => n <= 4), `${team} ${level} は 同じ カード 4 枚まで`);
+            assert.ok(list.every((no) => fitsDeck(cardByNo(no), team)), `${team} ${level} は チームの カード`);
+            const g = new Game({ players: [{ name: 'A', deck: team, cpu: true, list }, { name: 'B', deck: 'oni', cpu: true }], rand: seeded(17) });
+            await g.start();
+            for (let t = 0; t < 300 && g.winner === null; t++) await cpuTurn(g, g.players[g.active]);
+            assert.notEqual(g.winner, null, `${team} ${level}`);
+        }
     }
 });

@@ -23,8 +23,16 @@ const SFX = {
     rare: [[784, 0.08, 'triangle', 0.13], [988, 0.08, 'triangle', 0.13], [1175, 0.08, 'triangle', 0.13], [1568, 0.4, 'triangle', 0.13]]
 };
 
+// タブを 切りかえて 画面が かくれたら 音を 止め、もどったら 再開する (2026-11-04 ユーザー指定)
+if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+        if (!ctx) return;
+        if (document.hidden) ctx.suspend(); else ctx.resume();
+    });
+}
+
 export function play(name) {
-    if (!on || !SFX[name]) return;
+    if (!on || !SFX[name] || document.hidden) return;
     try {
         ctx ||= new (window.AudioContext || window.webkitAudioContext)();
         if (ctx.state === 'suspended') ctx.resume();
