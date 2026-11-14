@@ -5,6 +5,7 @@
 //   new:<id> = このゲームで 作った 絵 (new-art.js)
 //   scene:<id> = 技を 放つ ところ・場面の 景色 (scenes.js。このゲームで 描いた)
 // =====================================================================
+import { PixelHD } from './pixel-hd.js';
 import { LEGACY_ART } from './legacy-art.js';
 import { NEW_ART } from './new-art.js';
 import { SCENES, paintScene } from './scenes.js';
@@ -110,7 +111,9 @@ export function artURL(no) {
         ctx.fillStyle = c;
         ctx.fillRect(x, y, 1, 1);
     }));
-    const url = cv.toDataURL();
+    // 2026-11-14 (ユーザー指定: シリーズの ドット絵を 緻密に): 4 倍の 細かさに 作り直す (pixel-hd.js。輪郭を なめらかに・ふちに 光と 影)。
+    //   場面の 絵 (背景つき) は ひかえめに
+    const url = PixelHD.bake(PixelHD.fromCanvas(cv), SCENES[key] ? { soft: true } : {}).canvas.toDataURL();
     cache.set(key, url);
     return url;
 }
